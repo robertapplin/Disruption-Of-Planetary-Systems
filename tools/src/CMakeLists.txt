@@ -1,0 +1,26 @@
+SET(
+  INC_FILES
+  ../inc/FileManager.h
+  ../inc/Logger.h
+  ../inc/PerformanceChecker.h
+)
+
+SET(
+  SRC_FILES
+  FileManager.cpp
+  Logger.cpp
+  PerformanceChecker.cpp
+)
+
+FIND_PACKAGE(Boost 1.55.0)
+FIND_PACKAGE(Qt5 COMPONENTS Widgets)
+
+INCLUDE_DIRECTORIES(${BOOST_INCLUDEDIR})
+INCLUDE_DIRECTORIES(${PROJECT_SRC_DIR}/${TOOLS_INC_DIR})
+
+ADD_LIBRARY(Tools ${INC_FILES} ${SRC_FILES})
+
+#TARGET_LINK_LIBRARIES(Tools PUBLIC ${BOOST_LIBRARYDIR})  # Keep this
+TARGET_LINK_LIBRARIES(Tools PUBLIC Qt5::Widgets)
+
+TARGET_INCLUDE_DIRECTORIES(Tools PUBLIC ${PROJECT_SRC_DIR}/${TOOLS_INC_DIR})
