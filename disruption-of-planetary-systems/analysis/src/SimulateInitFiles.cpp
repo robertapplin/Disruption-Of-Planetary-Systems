@@ -4,7 +4,7 @@
 #include "Logger.h"
 #include "PerformanceChecker.h"
 
-#include <cstdlib> // system()
+#include <cstdlib>
 
 namespace {
 
@@ -24,14 +24,15 @@ InitFileSimulator::~InitFileSimulator() {}
 
 void InitFileSimulator::simulateInitFiles(
     std::vector<SimParameters *> const &simulationParameters) {
-  Logger::getInstance().addLog(LogType::Info, "Simulating init files...");
-  auto timer = new TimeCheck();
+  auto &logger = Logger::getInstance();
+  logger.addLog(LogType::Info, "Simulating init files...");
 
+  auto timer = new TimeCheck();
   simulateFiles(simulationParameters);
 
-  Logger::getInstance().addLog(
-      LogType::Info, "Simulations successful (" +
-                         std::to_string(timer->timeElapsed()) + "s).");
+  logger.addLog(LogType::Info, "Simulations successful (" +
+                                   std::to_string(timer->timeElapsed()) +
+                                   "s).");
 }
 
 void InitFileSimulator::simulateFiles(

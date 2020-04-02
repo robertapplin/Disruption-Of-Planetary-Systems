@@ -10,6 +10,8 @@
 #include <QFile>
 #include <QFileInfo>
 
+FileManager::FileManager() {}
+
 FileManager::FileManager(std::string const &filename) { setFilename(filename); }
 
 FileManager::~FileManager() {}
@@ -22,6 +24,9 @@ void FileManager::createNewFile(std::string const &line) const {
   /// You can't write to files which have been compiled into a project using a
   /// qrc file, as these files are restricted to void eexecution problems and
   /// are not writable.
+  if (m_filename.isEmpty())
+    return;
+
   QFile file(m_filename);
 
   if (file.open(QIODevice::WriteOnly)) {
@@ -39,6 +44,9 @@ void FileManager::writeLine(std::string const &line) const {
   /// You can't write to files which have been compiled into a project using a
   /// qrc file, as these files are restricted to void eexecution problems and
   /// are not writable.
+  if (m_filename.isEmpty())
+    return;
+
   QFile file(m_filename);
 
   if (file.open(QIODevice::Append)) {
@@ -52,21 +60,6 @@ void FileManager::writeLine(std::string const &line) const {
   }
 }
 
-boost::optional<std::string> FileManager::readAll() const {
-  std::ifstream t(m_filename.toStdString());
-  std::string str((std::istreambuf_iterator<char>(t)),
-	  std::istreambuf_iterator<char>());
-  //std::string str;
-
-  //t.seekg(0, std::ios::end);
-  //str.reserve(t.tellg());
-  //t.seekg(0, std::ios::beg);
-
-  //str.assign((std::istreambuf_iterator<char>(t)),
-  //           std::istreambuf_iterator<char>());
-  return str;
-}
-
 boost::optional<std::string>
 FileManager::readLineAtIndex(std::size_t index) const {
   return readLineAtIndex(m_filename, index);
@@ -74,6 +67,9 @@ FileManager::readLineAtIndex(std::size_t index) const {
 
 boost::optional<std::string>
 FileManager::readLineAtIndex(QString const &filename, std::size_t index) const {
+  if (m_filename.isEmpty())
+    return boost::none;
+
   QFile file(filename);
 
   if (file.open(QIODevice::ReadOnly)) {
@@ -106,6 +102,9 @@ FileManager::readLineAtIndex(QTextStream &textStream, std::size_t index) const {
 
 boost::optional<std::string>
 FileManager::readPreviousLine(std::string const &line) const {
+  if (m_filename.isEmpty())
+    return boost::none;
+
   QFile file(m_filename);
 
   if (file.open(QIODevice::ReadOnly)) {
@@ -139,6 +138,9 @@ FileManager::readPreviousLine(QTextStream &textStream,
 
 boost::optional<std::string>
 FileManager::readNextLine(std::string const &line) const {
+  if (m_filename.isEmpty())
+    return boost::none;
+
   QFile file(m_filename);
 
   if (file.open(QIODevice::ReadOnly)) {

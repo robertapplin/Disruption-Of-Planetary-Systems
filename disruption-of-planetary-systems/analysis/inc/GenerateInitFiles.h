@@ -1,6 +1,7 @@
 #ifndef GENERATEINITFILES_H
 #define GENERATEINITFILES_H
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -29,6 +30,10 @@ private:
   void generateInitFile(std::string const &pericentre,
                         std::string const &planetDistance,
                         std::size_t orientationIndex);
+  void generateInitFile(std::string const &pericentre,
+                        std::string const &planetDistance,
+                        std::size_t orientationIndex, std::size_t phi,
+                        std::size_t inclination);
   void generateInitFile(std::string const &initFilename,
                         std::string const &pericentre,
                         std::string const &planetDistance, std::size_t phi,
@@ -50,6 +55,7 @@ private:
   void addBodyData(std::string &fileText, Body *body) const;
 
   std::vector<SimParameters *> m_simulationParameters;
+  std::unique_ptr<FileManager> m_fileManager;
   std::string m_directory;
 };
 
