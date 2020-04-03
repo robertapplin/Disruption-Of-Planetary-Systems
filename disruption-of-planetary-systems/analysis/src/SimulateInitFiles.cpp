@@ -2,7 +2,6 @@
 #include "SimParameters.h"
 
 #include "Logger.h"
-#include "PerformanceChecker.h"
 
 #include <cstdlib>
 
@@ -18,30 +17,38 @@ char *toChar(std::string const &str) {
 
 InitFileSimulator::InitFileSimulator(std::string const &drive,
                                      std::string const &subDirectory)
-    : m_drive(drive), m_subDirectory(subDirectory) {}
+    : m_drive(drive), m_subDirectory(subDirectory),
+      m_directory(m_drive + "/" + m_subDirectory) {}
 
 InitFileSimulator::~InitFileSimulator() {}
 
 void InitFileSimulator::simulateInitFiles(
     std::vector<SimParameters *> const &simulationParameters) {
-  auto &logger = Logger::getInstance();
-  logger.addLog(LogType::Info, "Simulating init files...");
-
-  auto timer = new TimeCheck();
-  simulateFiles(simulationParameters);
-
-  logger.addLog(LogType::Info, "Simulations successful (" +
-                                   std::to_string(timer->timeElapsed()) +
-                                   "s).");
+  auto const cmd = toChar(getCommand(simulationParameters));
+  system(cmd);
+  deleteInitFiles(simulationParameters);
 }
 
-void InitFileSimulator::simulateFiles(
-    std::vector<SimParameters *> const &simulationParameters) {
+std::string InitFileSimulator::getCommand(
+    std::vector<SimParameters *> const &simulationParameters) const {
   std::string cmd = m_drive + " && cd " + m_subDirectory + " && ";
   for (auto const &parameters : simulationParameters) {
     cmd += "NewARC.out <" + parameters->filename() + ".init> data.log";
     if (parameters != *(simulationParameters.end() - 1))
       cmd += " && ";
   }
-  system(toChar(cmd));
+  return std::move(cmd);
+}
+
+void InitFileSimulator::deleteInitFiles(
+    std::vector<SimParameters *> const &simulationParameters) const {
+  for (auto const &parameters : simulationParameters)
+    deleteFile(parameters->filename() + ".init");
+}
+
+void InitFileSimulator::deleteFile(std::string const &filename) const {
+  if (remove(toChar(m_directory + filename)) != 0) {
+    Logger::getInstance().addLog(LogType::Warning,
+                                 "Failed to delete file " + filename + ".");
+  }
 }

@@ -9,10 +9,6 @@
 
 #include <boost/algorithm/string.hpp>
 
-static std::string const DRIVE = "D:";
-static std::string const SUB_DIRECTORY = "FYP-Data";
-static std::string const DIRECTORY = DRIVE + "\\" + SUB_DIRECTORY + "\\";
-
 namespace {
 
 std::vector<std::string> splitStringByDelimiter(std::string const &str,
@@ -24,41 +20,72 @@ std::vector<std::string> splitStringByDelimiter(std::string const &str,
 
 } // namespace
 
-DPSInterfaceModel::DPSInterfaceModel()
-    : m_initFileGenerator(std::make_unique<InitFileGenerator>(DIRECTORY)),
-      m_initFileSimulator(
-          std::make_unique<InitFileSimulator>(DRIVE, SUB_DIRECTORY)),
-      m_outFileProcessor(std::make_unique<OutFileProcessor>(DIRECTORY)) {}
+DPSInterfaceModel::DPSInterfaceModel(std::string const &directory,
+                                     double timeStep,
+                                     std::size_t numberOfTimeSteps,
+                                     double trueAnomaly)
+    : m_directory(directory),
+      m_initFileGenerator(std::make_unique<InitFileGenerator>(
+          m_directory, timeStep, numberOfTimeSteps, trueAnomaly)),
+      m_outFileProcessor(std::make_unique<OutFileProcessor>(m_directory)) {
+
+  auto const split = splitStringByDelimiter(m_directory, ":");
+  auto const drive = split[0] + ":";
+  auto subDir = split[1];
+  subDir.erase(0, 1);
+  m_initFileSimulator = std::make_unique<InitFileSimulator>(drive, subDir);
+}
 
 DPSInterfaceModel::~DPSInterfaceModel() {}
 
-void DPSInterfaceModel::run(
-    std::string const &pericentreString,
-    std::string const &planetDistanceString,
-    std::string const &numberOfOrientationString) const {
-  generateInitFiles(pericentreString, planetDistanceString,
-                    numberOfOrientationString);
-  simulateInitFiles();
-  processOutFiles();
+bool DPSInterfaceModel::validate(std::string const &pericentres,
+                                 std::string const &planetDistances) const {
+  bool validInput(true);
+
+  auto &logger = Logger::getInstance();
+  if (pericentres.empty()) {
+    validInput = false;
+    logger.addLog(LogType::Warning, "Pericentre field is empty.");
+  }
+  if (planetDistances.empty()) {
+    validInput = false;
+    logger.addLog(LogType::Warning, "Planet distance field is empty.");
+  }
+
+  return validInput;
 }
 
-void DPSInterfaceModel::generateInitFiles(
-    std::string const &pericentreString,
-    std::string const &planetDistanceString,
-    std::string const &numberOfOrientationString) const {
-  if (!pericentreString.empty() && !planetDistanceString.empty() &&
-      !numberOfOrientationString.empty()) {
-    generateInitFiles(splitStringByDelimiter(pericentreString, ","),
-                      splitStringByDelimiter(planetDistanceString, ","),
-                      std::stod(numberOfOrientationString));
-  } else {
-    Logger::getInstance().addLog(
-        LogType::Error,
-        "Invalid parameter provided: a parameter field is empty.");
+void DPSInterfaceModel::updateTimeStep(double timeStep) {
+  m_initFileGenerator->setTimeStep(timeStep);
+}
+
+void DPSInterfaceModel::updateNumberOfTimeSteps(std::size_t numberOfTimeSteps) {
+  m_initFileGenerator->setNumberOfTimeSteps(numberOfTimeSteps);
+}
+
+void DPSInterfaceModel::updateTrueAnomaly(double trueAnomaly) {
+  m_initFileGenerator->setTrueAnomaly(trueAnomaly);
+}
+
+void DPSInterfaceModel::run(std::string const &pericentres,
+                            std::string const &planetDistances,
+                            std::size_t numberOfOrientations) const {
+  if (validate(pericentres, planetDistances))
+    run(splitStringByDelimiter(pericentres, ","),
+        splitStringByDelimiter(planetDistances, ","), numberOfOrientations);
+}
+
+void DPSInterfaceModel::run(std::vector<std::string> const &pericentres,
+                            std::vector<std::string> const &planetDistances,
+                            std::size_t numberOfOrientation) const {
+  if (generateInitFiles(pericentres, planetDistances, numberOfOrientation)) {
+    auto const simParameters = m_initFileGenerator->simulationParameters();
+    if (simulateInitFiles(simParameters))
+      processOutFiles(simParameters);
   }
 }
 
-void DPSInterfaceModel::generateInitFiles(
+bool DPSInterfaceModel::generateInitFiles(
     std::vector<std::string> const &pericentres,
     std::vector<std::string> const &planetDistances,
     std::size_t numberOfOrientation) const {
@@ -66,22 +93,49 @@ void DPSInterfaceModel::generateInitFiles(
   logger.addLog(LogType::Info, "Generating init files...");
 
   try {
+    auto timer = TimeCheck();
     m_initFileGenerator->generateInitFiles(pericentres, planetDistances,
                                            numberOfOrientation);
-    logger.addLog(LogType::Info, "Init files successfully generated.");
+    logger.addLog(LogType::Info, "Generating init files: success (" +
+                                     std::to_string(timer.timeElapsed()) +
+                                     "s).");
+    return true;
   } catch (std::runtime_error const &error) {
     logger.addLog(LogType::Error, error.what());
+    return false;
   }
 }
 
-void DPSInterfaceModel::simulateInitFiles() const {
-  auto const simParameters = m_initFileGenerator->simulationParameters();
-  m_initFileSimulator->simulateInitFiles(simParameters);
+bool DPSInterfaceModel::simulateInitFiles(
+    std::vector<SimParameters *> const &simParameters) const {
+  auto &logger = Logger::getInstance();
+  logger.addLog(LogType::Info, "Simulating init files...");
+
+  try {
+    auto timer = TimeCheck();
+    m_initFileSimulator->simulateInitFiles(simParameters);
+    logger.addLog(LogType::Info, "Simulating init files: success (" +
+                                     std::to_string(timer.timeElapsed()) +
+                                     "s).");
+    return true;
+  } catch (std::runtime_error const &error) {
+    logger.addLog(LogType::Error, error.what());
+    return false;
+  }
 }
 
-void DPSInterfaceModel::processOutFiles() const {
-  auto timer = new TimeCheck();
-  auto const simParameters = m_initFileGenerator->simulationParameters();
-  m_outFileProcessor->processOutFiles(simParameters);
-  timer->report();
+void DPSInterfaceModel::processOutFiles(
+    std::vector<SimParameters *> const &simParameters) const {
+  auto &logger = Logger::getInstance();
+  logger.addLog(LogType::Info, "Processing out files...");
+
+  try {
+    auto timer = TimeCheck();
+    m_outFileProcessor->processOutFiles(simParameters);
+    logger.addLog(LogType::Info, "Processing out files: success (" +
+                                     std::to_string(timer.timeElapsed()) +
+                                     "s).");
+  } catch (std::runtime_error const &error) {
+    logger.addLog(LogType::Error, error.what());
+  }
 }

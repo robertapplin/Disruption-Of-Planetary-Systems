@@ -12,15 +12,7 @@
 #include <mutex>
 #include <thread>
 
-namespace {
-
-char *toChar(std::string const &str) {
-  char *cstr = new char[str.length() + 1];
-  strcpy(cstr, str.c_str());
-  return cstr;
-}
-
-} // namespace
+std::mutex mutex;
 
 OutFileProcessor::OutFileProcessor(std::string const &directory)
     : m_directory(directory) {}
@@ -29,24 +21,16 @@ OutFileProcessor::~OutFileProcessor() {}
 
 void OutFileProcessor::processOutFiles(
     std::vector<SimParameters *> const &simulationParameters) const {
-
-  // std::vector<std::thread> threadVector;
-  // threadVector.reserve(simulationParameters.size());
-
   SimResults results;
 
-  for (auto const &parameters : simulationParameters) {
-    // threadVector.emplace_back([&]() {
-    //  processOutFile(parameters->filename());
+  std::vector<std::thread> threadVector;
+  threadVector.reserve(simulationParameters.size());
 
-    //  deleteInitFile(parameters->filename());
-    //});
+  for (auto const &parameters : simulationParameters)
+    threadVector.emplace_back([&]() { processOutFile(*parameters, results); });
 
-    processOutFile(*parameters, results);
-  }
-
-  // for (auto &thread : threadVector)
-  //  thread.join();
+  for (auto &thread : threadVector)
+    thread.join();
 
   saveResults(results);
 }
@@ -54,43 +38,34 @@ void OutFileProcessor::processOutFiles(
 void OutFileProcessor::processOutFile(SimParameters const &parameters,
                                       SimResults &results) const {
 
-  auto outData = loadOutFile(parameters.filename());
-
+  auto const outData = loadOutFile(parameters.filename());
   auto const blackHole = outData[0];
   auto const star = outData[1];
   auto const planet = outData[2];
 
-  auto const numberOfTimeSteps = planet->numberOfTimeSteps();
+  computeSimResults(parameters, results, *blackHole, *star, *planet,
+                    planet->numberOfTimeSteps() - 1);
+}
 
-  auto const planetBhEnergies =
-      calculateBodyTotalEnergies(*planet, *blackHole, numberOfTimeSteps);
-  auto const planetStarEnergies =
-      calculateBodyTotalEnergies(*planet, *star, numberOfTimeSteps);
+void OutFileProcessor::computeSimResults(SimParameters const &parameters,
+                                         SimResults &results,
+                                         Body const &blackHole,
+                                         Body const &star, Body const &planet,
+                                         std::size_t stepIndex) const {
+  auto const boundToBlackHole = isBound(planet, blackHole, stepIndex);
+  auto const boundToStar = isBound(planet, star, stepIndex);
 
-  auto const boundToBlackHole = isBound(planetBhEnergies);
-  auto const boundToStar = isBound(planetStarEnergies);
+  auto const bhOrbitProps = calculateOrbitalProperties(
+      blackHole, planet, stepIndex, boundToBlackHole);
+  auto const starOrbitProps =
+      calculateOrbitalProperties(star, planet, stepIndex, boundToStar);
 
-  double semiMajorBh = 0.0;
-  double semiMajorStar = 0.0;
-  double eccentricityBh = 0.0;
-  double eccentricityStar = 0.0;
-  if (boundToBlackHole) {
-    semiMajorBh =
-        calculateSemiMajorAxis(*blackHole, *planet, numberOfTimeSteps - 1);
-
-    eccentricityBh = calculateEccentricity(*blackHole, *planet, semiMajorBh,
-                                           numberOfTimeSteps - 1);
-  } else if (boundToStar) {
-    semiMajorStar =
-        calculateSemiMajorAxis(*star, *planet, numberOfTimeSteps - 1);
-
-    eccentricityStar = calculateEccentricity(*star, *planet, semiMajorStar,
-                                             numberOfTimeSteps - 1);
-  }
-
+  mutex.lock();
   results.addResult(parameters.pericentre(), parameters.planetDistance(),
-                    boundToBlackHole, boundToStar, semiMajorBh, semiMajorStar,
-                    eccentricityBh, eccentricityStar);
+                    boundToBlackHole, boundToStar, bhOrbitProps.first,
+                    starOrbitProps.first, bhOrbitProps.second,
+                    starOrbitProps.second);
+  mutex.unlock();
 }
 
 std::vector<Body *>
@@ -141,11 +116,30 @@ double OutFileProcessor::calculateTotalEnergy(Body const &targetBody,
   return 0.5 * m * pow(v, 2) - otherBody.mass() * m / r;
 }
 
+bool OutFileProcessor::isBound(Body const &targetBody, Body const &otherBody,
+                               std::size_t index) const {
+  auto const totalEnergies =
+      calculateBodyTotalEnergies(targetBody, otherBody, index);
+  return isBound(totalEnergies);
+}
+
 bool OutFileProcessor::isBound(std::vector<double> const &energies) const {
   auto const maxIter = std::max_element(energies.begin(), energies.end());
   auto const minIter = std::min_element(maxIter, energies.end());
 
   return std::all_of(minIter, energies.end(), [](double x) { return x < 0.0; });
+}
+
+std::pair<double, double> OutFileProcessor::calculateOrbitalProperties(
+    Body const &body1, Body const &body2, std::size_t index, bool bound) const {
+  if (bound) {
+    auto const semiMajorAxis = calculateSemiMajorAxis(body1, body2, index - 1);
+    auto const eccentricity =
+        calculateEccentricity(body1, body2, semiMajorAxis, index - 1);
+    return std::pair<double, double>(std::move(semiMajorAxis),
+                                     std::move(eccentricity));
+  }
+  return std::pair<double, double>(0.0, 0.0);
 }
 
 double OutFileProcessor::calculateSemiMajorAxis(Body const &body1,
@@ -166,13 +160,6 @@ double OutFileProcessor::calculateEccentricity(Body const &body1,
   auto const h = relativePosition.crossProduct(relativeVelocity).magnitude();
 
   return sqrt(1.0 - pow(h, 2) / (body1.mass() * semiMajorAxis));
-}
-
-void OutFileProcessor::deleteInitFile(std::string const &filename) const {
-  if (!remove(toChar(m_directory + filename + ".init"))) {
-    Logger::getInstance().addLog(LogType::Warning, "Failed to delete file " +
-                                                       filename + ".init.");
-  }
 }
 
 void OutFileProcessor::saveResults(SimResults const &results) const {

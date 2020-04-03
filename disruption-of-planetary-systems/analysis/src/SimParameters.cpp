@@ -5,8 +5,8 @@ SimParameters::SimParameters(std::string const &filename, double pericentre,
                              std::size_t orientationIndex, std::size_t phi,
                              std::size_t inclination)
     : m_filename(filename), m_pericentre(pericentre),
-      m_planetDistance(planetDistance), m_phi(phi), m_inclination(inclination) {
-}
+      m_planetDistance(planetDistance), m_orientationIndex(orientationIndex),
+      m_phi(phi), m_inclination(inclination) {}
 
 SimParameters::~SimParameters() {}
 
