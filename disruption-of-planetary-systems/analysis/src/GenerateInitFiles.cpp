@@ -1,24 +1,18 @@
-#define _USE_MATH_DEFINES
-
 #include "GenerateInitFiles.h"
-
 #include "Body.h"
-#include "FileManager.h"
 #include "SimParameters.h"
+
+#include "FileManager.h"
+
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 #include <cmath>
 #include <cstdlib>
-#include <math.h>
-#include <mutex>
-#include <thread>
 
 static double const G = 1.0;
-static double const TRUE_ANOMALY = 164 * (M_PI / 180);
-static Body *BLACK_HOLE =
-    new Body(4000000.0, std::vector<double>{0.0, 0.0, 0.0},
-             std::vector<double>{0.0, 0.0, 0.0});
-
-std::mutex mutex;
+static Body *BLACK_HOLE = new Body(4000000.0, XYZComponents(0.0, 0.0, 0.0),
+                                   XYZComponents(0.0, 0.0, 0.0));
 
 namespace {
 
@@ -28,12 +22,28 @@ std::size_t randomNumber(int lower, int higher) {
 
 } // namespace
 
-InitFileGenerator::InitFileGenerator(std::string const &directory)
-    : m_directory(directory) {}
+InitFileGenerator::InitFileGenerator(std::string const &directory,
+                                     double timeStep,
+                                     std::size_t numberOfTimeSteps,
+                                     double trueAnomaly)
+    : m_fileManager(std::make_unique<FileManager>()), m_directory(directory),
+      m_timeStep(timeStep), m_numberOfTimeSteps(numberOfTimeSteps),
+      m_trueAnom(trueAnomaly) {}
 
 InitFileGenerator::~InitFileGenerator() {}
 
-std::vector<SimParameters *> InitFileGenerator::simulationParameters() const {
+void InitFileGenerator::setTimeStep(double timeStep) { m_timeStep = timeStep; }
+
+void InitFileGenerator::setNumberOfTimeSteps(std::size_t numberOfTimeSteps) {
+  m_numberOfTimeSteps = numberOfTimeSteps;
+}
+
+void InitFileGenerator::setTrueAnomaly(double trueAnomaly) {
+  m_trueAnom = trueAnomaly * (M_PI / 180);
+}
+
+std::vector<SimParameters *> const &
+InitFileGenerator::simulationParameters() const {
   return m_simulationParameters;
 }
 
@@ -47,37 +57,24 @@ void InitFileGenerator::updateInitData(std::string const &initFilename,
                                        std::size_t orientationIndex,
                                        std::size_t phi,
                                        std::size_t inclination) {
-  mutex.lock();
   m_simulationParameters.emplace_back(
       new SimParameters(initFilename, pericentre, planetDistance,
                         orientationIndex, phi, inclination));
-  mutex.unlock();
 }
 
 void InitFileGenerator::generateInitFiles(
     std::vector<std::string> const &pericentres,
     std::vector<std::string> const &planetDistances,
     std::size_t const &numberOfOrientations) {
-  auto const numberOfInitFiles =
-      pericentres.size() * planetDistances.size() * numberOfOrientations;
-  resetInitData(numberOfInitFiles);
+  resetInitData(pericentres.size() * planetDistances.size() *
+                numberOfOrientations);
 
-  std::vector<std::thread> threadVector;
-  threadVector.reserve(numberOfInitFiles);
+  for (auto const &pericentre : pericentres)
+    for (auto const &planetDistance : planetDistances)
+      for (auto index = 1u; index < numberOfOrientations + 1; ++index)
+        generateInitFile(pericentre, planetDistance, index);
 
-  for (auto const &pericentre : pericentres) {
-    for (auto const &planetDistance : planetDistances) {
-      for (auto orientationIndex = 1u;
-           orientationIndex < numberOfOrientations + 1; ++orientationIndex) {
-        threadVector.emplace_back([&]() {
-          generateInitFile(pericentre, planetDistance, orientationIndex);
-        });
-      }
-    }
-  }
-
-  for (auto &thread : threadVector)
-    thread.join();
+  saveParameters(simulationParameters());
 }
 
 void InitFileGenerator::generateInitFile(std::string const &pericentre,
@@ -85,12 +82,20 @@ void InitFileGenerator::generateInitFile(std::string const &pericentre,
                                          std::size_t orientationIndex) {
   auto const phi = randomNumber(0, 360);
   auto const inclination = randomNumber(0, 360);
-  auto const initFilename =
+  generateInitFile(pericentre, planetDistance, orientationIndex, phi,
+                   inclination);
+}
+
+void InitFileGenerator::generateInitFile(std::string const &pericentre,
+                                         std::string const &planetDistance,
+                                         std::size_t orientationIndex,
+                                         std::size_t phi,
+                                         std::size_t inclination) {
+  auto const filename =
       generateInitFilename(pericentre, planetDistance, orientationIndex);
+  generateInitFile(filename, pericentre, planetDistance, phi, inclination);
 
-  generateInitFile(initFilename, pericentre, planetDistance, phi, inclination);
-
-  updateInitData(initFilename, std::stod(pericentre), std::stod(planetDistance),
+  updateInitData(filename, std::stod(pericentre), std::stod(planetDistance),
                  orientationIndex, phi, inclination);
 }
 
@@ -107,19 +112,22 @@ void InitFileGenerator::generateInitFile(std::string const &initFilename,
 }
 
 void InitFileGenerator::generateInitFile(std::string const &initFilename,
-                                         Body *blackHole, Body *star,
-                                         Body *planet) const {
-  FileManager *fileManager =
-      new FileManager(m_directory + initFilename + ".init");
-  /// Takes a long time to write to files
-  fileManager->createNewFile(
-      generateFileText(initFilename, blackHole, star, planet));
+                                         Body const *blackHole,
+                                         Body const *star,
+                                         Body const *planet) const {
+  auto const data = generateFileText(initFilename, blackHole, star, planet);
+
+  m_fileManager->setFilename(m_directory + initFilename + ".init");
+  m_fileManager->createNewFile(data);
 }
 
 std::string InitFileGenerator::generateFileText(std::string const &initFilename,
-                                                Body *blackHole, Body *star,
-                                                Body *planet) const {
-  std::string fileText = "-1 3 0.08 1200 0.000000 0.000000 1.d0 1.d-3 0.d0 0 " +
+                                                Body const *blackHole,
+                                                Body const *star,
+                                                Body const *planet) const {
+  std::string fileText = "-1 3 " + std::to_string(m_timeStep) + " " +
+                         std::to_string(m_numberOfTimeSteps) +
+                         " 0.000000 0.000000 1.d0 1.d-3 0.d0 0 " +
                          initFilename + ".out 1 1";
   addBodyData(fileText, blackHole);
   addBodyData(fileText, star);
@@ -127,16 +135,18 @@ std::string InitFileGenerator::generateFileText(std::string const &initFilename,
   return std::move(fileText);
 }
 
-void InitFileGenerator::addBodyData(std::string &fileText, Body *body) const {
+void InitFileGenerator::addBodyData(std::string &fileText,
+                                    Body const *body) const {
   auto const mass = std::to_string(body->mass());
-  auto const position = body->position();
-  auto const velocity = body->velocity();
+  auto const position = body->position(BodyTime::Initial);
+  auto const velocity = body->velocity(BodyTime::Initial);
 
-  fileText += "\n  " + mass + "   " + std::to_string(position[0]) + "   " +
-              std::to_string(position[1]) + "   " +
-              std::to_string(position[2]) + "   " +
-              std::to_string(velocity[0]) + "   " +
-              std::to_string(velocity[1]) + "   " + std::to_string(velocity[2]);
+  fileText += "\n  " + mass + "   " + std::to_string(position.compX()) + "   " +
+              std::to_string(position.compY()) + "   " +
+              std::to_string(position.compZ()) + "   " +
+              std::to_string(velocity.compX()) + "   " +
+              std::to_string(velocity.compY()) + "   " +
+              std::to_string(velocity.compZ());
 }
 
 std::string InitFileGenerator::generateInitFilename(
@@ -146,50 +156,70 @@ std::string InitFileGenerator::generateInitFilename(
          std::to_string(orientationIndex);
 }
 
-Body *InitFileGenerator::generateStarData(double pericentre) const {
+Body const *InitFileGenerator::generateStarData(double pericentre) const {
   // Calculate initial position of star
-  auto const starPosition = std::vector<double>{
-      2.0 * pericentre * cos(TRUE_ANOMALY) / (1 + cos(TRUE_ANOMALY)),
-      2.0 * pericentre * sin(TRUE_ANOMALY) / (1 + cos(TRUE_ANOMALY)), 0.0};
+  auto const x = 2.0 * pericentre * cos(m_trueAnom) / (1 + cos(m_trueAnom));
+  auto const y = 2.0 * pericentre * sin(m_trueAnom) / (1 + cos(m_trueAnom));
+  auto const z = 0.0;
 
   // Calculate initial velocity of star
-  auto const bhPosition = BLACK_HOLE->position();
+  auto const bhPosition = BLACK_HOLE->position(BodyTime::Initial);
 
-  auto const r = sqrt(pow(starPosition[0] - bhPosition[0], 2) +
-                      pow(starPosition[1] - bhPosition[1], 2) +
-                      pow(starPosition[2] - bhPosition[2], 2));
+  auto const r =
+      sqrt(pow(x - bhPosition.compX(), 2) + pow(y - bhPosition.compY(), 2) +
+           pow(z - bhPosition.compZ(), 2));
   auto const parabolicVelocity = sqrt(2.0 * G * BLACK_HOLE->mass() / r);
 
-  auto const starVelocity =
-      std::vector<double>{parabolicVelocity * sin(TRUE_ANOMALY / 2),
-                          -parabolicVelocity * cos(TRUE_ANOMALY / 2), 0.0};
+  auto const vx = parabolicVelocity * sin(m_trueAnom / 2);
+  auto const vy = -parabolicVelocity * cos(m_trueAnom / 2);
 
-  return new Body(1.0, std::move(starPosition), std::move(starVelocity));
+  return new Body(1.0, XYZComponents(std::move(x), std::move(y), std::move(z)),
+                  XYZComponents(std::move(vx), std::move(vy), 0.0));
 }
 
-Body *InitFileGenerator::generatePlanetData(Body *star, double planetDistance,
-                                            std::size_t phi,
-                                            std::size_t inclination) const {
+Body const *
+InitFileGenerator::generatePlanetData(Body const *star, double planetDistance,
+                                      std::size_t phi,
+                                      std::size_t inclination) const {
   // Calculate initial position of planet
-  auto const starPosition = star->position();
+  auto const starPos = star->position(BodyTime::Initial);
 
-  auto const x = starPosition[0] + planetDistance * cos(inclination) * cos(phi);
-  auto const y = starPosition[1] + planetDistance * cos(inclination) * sin(phi);
-  auto const z = starPosition[2] + planetDistance * sin(inclination);
-
-  auto const planetPosition =
-      std::vector<double>{std::move(x), std::move(y), std::move(z)};
+  auto const x = starPos.compX() + planetDistance * cos(inclination) * cos(phi);
+  auto const y = starPos.compY() + planetDistance * cos(inclination) * sin(phi);
+  auto const z = starPos.compZ() + planetDistance * sin(inclination);
 
   // Calculate initial velocity of planet
   auto const circularVelocity = sqrt(G * star->mass() / planetDistance);
-  auto const starVelocity = star->velocity();
+  auto const starVelocity = star->velocity(BodyTime::Initial);
 
-  auto const vx = starVelocity[0] + circularVelocity * sin(phi);
-  auto const vy = starVelocity[1] - circularVelocity * cos(phi);
+  auto const vx = starVelocity.compX() + circularVelocity * sin(phi);
+  auto const vy = starVelocity.compY() - circularVelocity * cos(phi);
 
-  auto const planetVelocity =
-      std::vector<double>{std::move(vx), std::move(vy), 0.0};
+  return new Body(0.0009543,
+                  XYZComponents(std::move(x), std::move(y), std::move(z)),
+                  XYZComponents(std::move(vx), std::move(vy), 0.0));
+}
 
-  return new Body(0.0009543, std::move(planetPosition),
-                  std::move(planetVelocity));
+void InitFileGenerator::saveParameters(
+    std::vector<SimParameters *> const &parameters) const {
+  FileManager *fileManager =
+      new FileManager(m_directory + "simulation_parameters.txt");
+  fileManager->createNewFile(generateFileText(parameters));
+}
+
+std::string InitFileGenerator::generateFileText(
+    std::vector<SimParameters *> const &parameters) const {
+  std::string fileText = "Index  Pericentre  PlanetDistance  Phi  Inclination";
+  for (auto const &parameterSet : parameters)
+    fileText += generateFileLine(parameterSet);
+  return std::move(fileText);
+}
+
+std::string
+InitFileGenerator::generateFileLine(SimParameters const *parameters) const {
+  return "\n" + std::to_string(parameters->orientationIndex()) + " " +
+         std::to_string(static_cast<int>(parameters->pericentre())) + ".0 " +
+         std::to_string(static_cast<int>(parameters->planetDistance())) +
+         ".0 " + std::to_string(parameters->phi()) + " " +
+         std::to_string(parameters->inclination());
 }

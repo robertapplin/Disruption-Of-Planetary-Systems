@@ -12,6 +12,7 @@
 class FileManager {
 
 public:
+  FileManager();
   FileManager(std::string const &filename);
   ~FileManager();
 
@@ -20,7 +21,6 @@ public:
   void createNewFile(std::string const &line) const;
   void writeLine(std::string const &line) const;
 
-  boost::optional<std::string> readAll() const;
   boost::optional<std::string> readLineAtIndex(std::size_t index) const;
   boost::optional<std::string> readLineAtIndex(QString const &filename,
                                                std::size_t index) const;

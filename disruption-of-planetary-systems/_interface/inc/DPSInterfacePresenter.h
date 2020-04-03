@@ -18,9 +18,13 @@ public:
   ~DPSInterfacePresenter();
 
 private slots:
+  void handleTimeStepChanged(double timeStep);
+  void handleNumberOfTimeStepsChanged(std::size_t numberOfTimeSteps);
+  void handleTrueAnomalyChanged(double trueAnomaly);
+
   void handleRunClicked(std::string const &pericentres,
                         std::string const &planetDistances,
-                        std::string const &numberOfOrientations);
+                        std::size_t numberOfOrientations);
 
 private:
   void connectPresenter();
