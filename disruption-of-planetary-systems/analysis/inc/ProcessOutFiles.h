@@ -1,31 +1,44 @@
 #ifndef PROCESSOUTFILES_H
 #define PROCESSOUTFILES_H
 
+#include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
 
+struct InitSimulationParams;
+
 class Body;
-class SimParameters;
-class SimResult;
-class SimResults;
+class SimulationResult;
+class TaskRunner;
 
 class OutFileProcessor {
 public:
   OutFileProcessor(std::string const &directory);
   ~OutFileProcessor();
 
-  void processOutFiles(
-      std::vector<SimParameters *> const &simulationParameters) const;
+  bool processOutFiles(
+      std::vector<InitSimulationParams> const &simulationParameters);
 
 private:
-  void processOutFile(SimParameters const &parameters,
-                      SimResults &results) const;
-  void computeSimResults(SimParameters const &parameters, SimResults &results,
-                         Body const &blackHole, Body const &star,
-                         Body const &planet, std::size_t stepIndex) const;
+  void resetProcessor(std::size_t numberOfOutFiles);
 
-  std::vector<Body *> loadOutFile(std::string const &filename) const;
+  void processOutFile(InitSimulationParams const &parameters);
+
+  void computeSimulationResults4Body(InitSimulationParams const &parameters,
+                                     Body const &blackHole, Body const &star,
+                                     Body const &planetA, Body const &planetB);
+  void computeSimulationResults(InitSimulationParams const &parameters,
+                                Body const &blackHole, Body const &star,
+                                Body const &planet, double planetDistance);
+
+  std::vector<std::unique_ptr<Body>>
+  loadOutFile(InitSimulationParams const &parameters) const;
+  std::vector<std::unique_ptr<Body>>
+  loadOutFile3Body(std::string const &filename) const;
+  std::vector<std::unique_ptr<Body>>
+  loadOutFile4Body(std::string const &filename) const;
 
   std::vector<double>
   calculateBodyTotalEnergies(Body const &targetBody, Body const &otherBody,
@@ -37,6 +50,8 @@ private:
                std::size_t index) const;
   bool isBound(std::vector<double> const &energies) const;
 
+  double calculateHillsRadius(double pericentre) const;
+
   std::pair<double, double> calculateOrbitalProperties(Body const &body1,
                                                        Body const &body2,
                                                        std::size_t index,
@@ -46,11 +61,23 @@ private:
   double calculateEccentricity(Body const &body1, Body const &body2,
                                double semiMajorAxis, std::size_t index) const;
 
-  void saveResults(SimResults const &results) const;
-  std::string generateFileText(SimResults const &results) const;
-  std::string generateFileLine(SimResult const *result) const;
+  void saveResults() const;
+  std::string generateResultsFileText() const;
+  std::string generateResultFileLine(SimulationResult const &result) const;
+
+  void initializeResults(
+      std::vector<InitSimulationParams> const &simulationParameters);
+  void initializeResult(double pericentre, double planetDistance);
+  bool haveResult(double pericentre, double planetDistance) const;
+  void addResult(double pericentre, double planetDistance, bool bhBound,
+                 bool starBound, double semiMajorBh, double semiMajorStar,
+                 double eccentricityBh, double eccentricityStar);
+
+  std::mutex m_mutex;
 
   std::string m_directory;
+  TaskRunner &m_taskRunner;
+  std::vector<std::unique_ptr<SimulationResult>> m_results;
 };
 
 #endif /* PROCESSOUTFILES_H */

@@ -2,7 +2,6 @@
 #define LOGGER_H
 
 #include <string>
-#include <vector>
 
 #include <QSplitter>
 #include <QTextEdit>

@@ -1,17 +1,13 @@
-#ifndef SIMRESULTS_H
-#define SIMRESULTS_H
+#ifndef SIMULATION_RESULTS_H
+#define SIMULATION_RESULTS_H
 
 #include <vector>
 
-/*
-  SimResult class
-*/
-class SimResult {
+class SimulationResult {
 public:
-  SimResult(double pericentre, double planetDistance, bool bhBound,
-            bool starBound, double semiMajorBh, double semiMajorStar,
-            double eccentricityBh, double eccentricityStar);
-  ~SimResult();
+  SimulationResult(double pericentre, double planetDistance,
+                   double hillsRadius);
+  ~SimulationResult();
 
   void updateCounts(bool bhBound, bool starBound);
   void updateAverages(double semiMajorBh, double semiMajorStar,
@@ -21,6 +17,7 @@ public:
 
   double pericentre() const;
   double planetDistance() const;
+  double hillsRadius() const;
 
   double bhBoundFraction() const;
   double starBoundFraction() const;
@@ -38,6 +35,7 @@ public:
 private:
   double m_pericentre;
   double m_planetDistance;
+  double m_hillsRadius;
   double m_sumSemiMajorBh;
   double m_sumSemiMajorStar;
   double m_sumEccentricityBh;
@@ -47,22 +45,4 @@ private:
   std::size_t m_totalCount;
 };
 
-/*
-  SimResults class
-*/
-class SimResults {
-public:
-  SimResults();
-  ~SimResults();
-
-  void addResult(double pericentre, double planetDistance, bool bhBound,
-                 bool starBound, double semiMajorBh, double semiMajorStar,
-                 double eccentricityBh, double eccentricityStar);
-
-  std::vector<SimResult *> simulationResults() const;
-
-private:
-  std::vector<SimResult *> m_results;
-};
-
-#endif /* SIMRESULTS_H */
+#endif /* SIMULATION_RESULTS_H */

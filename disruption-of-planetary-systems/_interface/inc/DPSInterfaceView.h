@@ -16,35 +16,30 @@ public:
   ~DPSInterfaceView();
 
   std::string directory() const;
+  std::size_t numberOfBodies() const;
+  bool useDefaultHeaderParams() const;
   double timeStep() const;
   std::size_t numberOfTimeSteps() const;
   double trueAnomaly() const;
 
-  void setRunning(bool isRunning);
-
-signals:
-  void timeStepChanged(double value);
-  void numberTimeStepsChanged(std::size_t value);
-  void trueAnomalyChanged(double value);
-  void runClicked(std::string const &pericentres,
-                  std::string const &planetDistances,
-                  std::size_t numberOfOrientations);
+  std::string pericentres() const;
+  std::string planetDistancesA() const;
+  std::string planetDistancesB() const;
+  std::size_t numberOfOrientations() const;
 
 private slots:
-  void emitTimeStepChanged(double value);
-  void emitNumberTimeStepsChanged(int value);
-  void emitTrueAnomalyChanged(double value);
-  void emitRunClicked();
+  void handleNumberOfBodiesChanged(int value);
+  void handleUseDefaultHeaderParamsChanged(int state);
 
 private:
   void connectUi();
 
   void setPericentresValidator(QString const &regex);
-  void setPlanetDistancesValidator(QString const &regex);
+  void setPlanetDistancesAValidator(QString const &regex);
+  void setPlanetDistancesBValidator(QString const &regex);
 
-  std::string pericentres() const;
-  std::string planetDistances() const;
-  std::size_t numberOfOrientations() const;
+  void setPlanetDistancesBEnabled(bool enable);
+  void setInputHeaderParametersEnabled(bool enable);
 
   QValidator *createValidator(QString const &regex);
 

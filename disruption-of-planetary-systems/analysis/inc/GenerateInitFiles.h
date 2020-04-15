@@ -5,74 +5,109 @@
 #include <string>
 #include <vector>
 
+struct InitHeaderParams;
+struct InitHeaderDefaults;
+struct InitSimulationParams;
+
 class Body;
 class FileManager;
-class SimParameters;
+class TaskRunner;
 
 class InitFileGenerator {
 
 public:
-  InitFileGenerator(std::string const &directory, double timeStep,
-                    std::size_t numberOfTimeSteps, double trueAnomaly);
+  InitFileGenerator(std::string const &directory);
   ~InitFileGenerator();
 
-  void setTimeStep(double timeStep);
-  void setNumberOfTimeSteps(std::size_t numberOfTimeSteps);
-  void setTrueAnomaly(double trueAnomaly);
+  std::vector<InitSimulationParams> const &simulationParameters() const;
 
-  std::vector<SimParameters *> const &simulationParameters() const;
-
-  void generateInitFiles(std::vector<std::string> const &pericentres,
-                         std::vector<std::string> const &planetDistances,
-                         std::size_t const &numberOfOrientations);
+  bool generate(std::vector<std::string> const &pericentres,
+                std::vector<std::string> const &planetDistancesA,
+                std::vector<std::string> const &planetDistancesB,
+                std::size_t numberOfOrientations);
 
 private:
-  void resetInitData(std::size_t numberOfInitFiles);
-  void updateInitData(std::string const &initFilename, double pericentre,
-                      double planetDistance, std::size_t orientationIndex,
-                      std::size_t phi, std::size_t inclination);
+  void resetGenerator(std::size_t numberOfInitFiles);
+  void resetInitSimulationParams(std::size_t numberOfInitFiles);
+  void addInitSimulationParams(InitSimulationParams const &simParameters);
 
-  void generateInitFile(std::string const &pericentre,
-                        std::string const &planetDistance,
-                        std::size_t orientationIndex);
-  void generateInitFile(std::string const &pericentre,
-                        std::string const &planetDistance,
-                        std::size_t orientationIndex, std::size_t phi,
-                        std::size_t inclination);
-  void generateInitFile(std::string const &initFilename,
-                        std::string const &pericentre,
-                        std::string const &planetDistance, std::size_t phi,
-                        std::size_t inclination) const;
-  void generateInitFile(std::string const &initFilename, Body const *blackHole,
-                        Body const *star, Body const *planet) const;
+  bool generateInitFiles(std::vector<std::string> const &pericentres,
+                         std::vector<std::string> const &planetDistancesA,
+                         std::vector<std::string> const &planetDistancesB,
+                         std::size_t numberOfOrientations);
+  void generateInitFiles(std::string const &pericentre,
+                         std::vector<std::string> const &planetDistancesA,
+                         std::vector<std::string> const &planetDistancesB,
+                         std::size_t planetDistanceIndex,
+                         std::size_t numberOfOrientations);
 
-  std::string generateFileText(std::string const &initFilename,
-                               Body const *blackHole, Body const *star,
-                               Body const *planet) const;
+  void generate3BodyInitFiles(std::string const &pericentre,
+                              std::string const &planetDistance,
+                              std::size_t numberOfOrientations);
+  void generate3BodyInitFile(std::string const &pericentre,
+                             std::string const &planetDistance,
+                             std::size_t orientationIndex);
+  void generate3BodyInitFile(std::string const &pericentre,
+                             std::string const &planetDistance,
+                             std::size_t orientationIndex, std::size_t phi,
+                             std::size_t inclination);
+  void generate3BodyInitFile(std::string const &filename, double pericentre,
+                             double planetDistance,
+                             std::size_t orientationIndex, std::size_t phi,
+                             std::size_t inclination);
 
-  std::string generateInitFilename(std::string const &pericentre,
-                                   std::string const &planetDistance,
-                                   std::size_t const &orientationIndex) const;
+  void generate4BodyInitFiles(std::string const &pericentre,
+                              std::string const &planetDistanceA,
+                              std::string const &planetDistanceB,
+                              std::size_t numberOfOrientations);
+  void generate4BodyInitFile(std::string const &pericentre,
+                             std::string const &planetDistanceA,
+                             std::string const &planetDistanceB,
+                             std::size_t orientationIndex);
+  void generate4BodyInitFile(std::string const &pericentre,
+                             std::string const &planetDistanceA,
+                             std::string const &planetDistanceB,
+                             std::size_t orientationIndex, std::size_t phi,
+                             std::size_t inclination);
+  void generate4BodyInitFile(std::string const &filename, double pericentre,
+                             double planetDistanceA, double planetDistanceB,
+                             std::size_t orientationIndex, std::size_t phi,
+                             std::size_t inclination);
 
-  Body const *generateStarData(double pericentre) const;
-  Body const *generatePlanetData(Body const *star, double planetDistance,
-                                 std::size_t phi,
-                                 std::size_t inclination) const;
+  void createFile(std::string const &filename,
+                  std::string const &fileText) const;
 
-  void addBodyData(std::string &fileText, Body const *body) const;
-
-  void saveParameters(std::vector<SimParameters *> const &parameters) const;
   std::string
-  generateFileText(std::vector<SimParameters *> const &parameters) const;
-  std::string generateFileLine(SimParameters const *parameters) const;
+  generate3BodyInitFilename(std::string const &pericentre,
+                            std::string const &planetDistance,
+                            std::size_t const &orientationIndex) const;
+  std::string
+  generate4BodyInitFilename(std::string const &pericentre,
+                            std::string const &planetDistanceA,
+                            std::string const &planetDistanceB,
+                            std::size_t const &orientationIndex) const;
 
-  double m_timeStep;
-  std::size_t m_numberOfTimeSteps;
-  double m_trueAnom;
+  std::string generateInitHeader(std::string const &filename,
+                                 double planetDistance) const;
 
-  std::vector<SimParameters *> m_simulationParameters;
+  void saveSimulationParameters(
+      std::vector<InitSimulationParams> const &parameters) const;
+  std::string generateSimulationParametersText(
+      std::vector<InitSimulationParams> const &parameters) const;
+  std::string generateSimulationParametersHeader(
+      std::vector<InitSimulationParams> const &parameters) const;
+  std::string generateSimulationParametersLine(
+      InitSimulationParams const &parameters) const;
+  std::string generateSimulationPlanetDistancesSubLine(
+      InitSimulationParams const &parameters) const;
+
+  bool isThreeBodies() const;
+
+  std::vector<InitSimulationParams> m_simulationParams;
+
   std::unique_ptr<FileManager> m_fileManager;
   std::string m_directory;
+  TaskRunner &m_taskRunner;
 };
 
 #endif // !GENERATEINITFILES_H

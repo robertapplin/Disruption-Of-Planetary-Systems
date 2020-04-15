@@ -17,17 +17,16 @@ public:
   DPSInterfacePresenter(DPSInterfaceView *view, QWidget *parent = Q_NULLPTR);
   ~DPSInterfacePresenter();
 
-private slots:
-  void handleTimeStepChanged(double timeStep);
-  void handleNumberOfTimeStepsChanged(std::size_t numberOfTimeSteps);
-  void handleTrueAnomalyChanged(double trueAnomaly);
+  void unlockRunning();
 
-  void handleRunClicked(std::string const &pericentres,
-                        std::string const &planetDistances,
-                        std::size_t numberOfOrientations);
+signals:
+  void unlockTaskRunner();
+
+public slots:
+  void handleRunClicked();
 
 private:
-  void connectPresenter();
+  void setInitHeaderParams();
 
   DPSInterfaceView *m_view;
   std::unique_ptr<DPSInterfaceModel> m_model;

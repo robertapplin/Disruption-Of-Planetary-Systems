@@ -5,45 +5,61 @@
 #include <string>
 #include <vector>
 
+struct InitSimulationParams;
+
+class DPSInterfacePresenter;
 class InitFileGenerator;
 class InitFileSimulator;
 class OutFileProcessor;
-class SimParameters;
 
 class DPSInterfaceModel {
 
 public:
-  DPSInterfaceModel(std::string const &directory, double timeStep,
-                    std::size_t numberOfTimeSteps, double trueAnomaly);
+  DPSInterfaceModel(DPSInterfacePresenter *presenter,
+                    std::string const &directory);
   ~DPSInterfaceModel();
 
+  void updateNumberOfBodies(std::size_t numberOfBodies);
+  void updateUseDefaultHeaderParams(bool useDefaults);
   void updateTimeStep(double timeStep);
   void updateNumberOfTimeSteps(std::size_t numberOfTimeSteps);
   void updateTrueAnomaly(double trueAnomaly);
 
-  void run(std::string const &pericentres, std::string const &planetDistances,
-           std::size_t numberOfOrientations) const;
+  void run(std::string const &pericentres, std::string const &planetDistancesA,
+           std::string const &planetDistancesB,
+           std::size_t numberOfOrientations);
 
 private:
-  bool validate(std::string const &pericentres,
-                std::string const &planetDistances) const;
+  void setupInitFileSimulator();
 
-  void run(std::vector<std::string> const &pericentres,
-           std::vector<std::string> const &planetDistances,
-           std::size_t numberOfOrientation) const;
+  bool validate(std::string const &pericentres,
+                std::vector<std::string> const &planetDistancesA,
+                std::vector<std::string> const &planetDistancesB) const;
+
+  void runAll(std::vector<std::string> const &pericentres,
+              std::vector<std::string> const &planetDistancesA,
+              std::vector<std::string> const &planetDistancesB,
+              std::size_t numberOfOrientation) const;
 
   bool generateInitFiles(std::vector<std::string> const &pericentres,
-                         std::vector<std::string> const &planetDistances,
+                         std::vector<std::string> const &planetDistancesA,
+                         std::vector<std::string> const &planetDistancesB,
                          std::size_t numberOfOrientation) const;
 
-  bool
-  simulateInitFiles(std::vector<SimParameters *> const &simParameters) const;
-  void processOutFiles(std::vector<SimParameters *> const &simParameters) const;
+  bool simulateInitFiles(
+      std::vector<InitSimulationParams> const &simParameters) const;
+  void
+  processOutFiles(std::vector<InitSimulationParams> const &simParameters) const;
+
+  template <typename Process>
+  bool runProcess(Process const &predicate,
+                  std::string const &processDescription) const;
 
   std::string m_directory;
   std::unique_ptr<InitFileGenerator> m_initFileGenerator;
   std::unique_ptr<InitFileSimulator> m_initFileSimulator;
   std::unique_ptr<OutFileProcessor> m_outFileProcessor;
+  DPSInterfacePresenter *m_presenter;
 };
 
 #endif // !DPSINTERFACEMODEL_H

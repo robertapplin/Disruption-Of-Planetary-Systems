@@ -4,6 +4,7 @@
 #include "Logger.h"
 
 #include <QList>
+#include <QScrollBar>
 
 void Logger::setLogger(QTextEdit *textEdit, QSplitter *layout) {
   m_logger = textEdit;
@@ -51,5 +52,7 @@ void Logger::addLog(LogType const &logType, std::string const &message) {
       setVisible(true);
       break;
     }
+    m_logger->verticalScrollBar()->setValue(
+        m_logger->verticalScrollBar()->maximum());
   }
 }

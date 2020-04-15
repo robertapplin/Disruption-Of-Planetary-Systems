@@ -77,6 +77,9 @@
       </widget>
      </widget>
     </item>
+    <item row="1" column="0">
+     <widget class="TaskRunnerView" name="wTaskRunner" native="true"/>
+    </item>
    </layout>
   </widget>
  </widget>
@@ -86,6 +89,12 @@
    <class>DPSInterfaceView</class>
    <extends>QWidget</extends>
    <header>DPSInterfaceView.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>TaskRunnerView</class>
+   <extends>QWidget</extends>
+   <header>TaskRunnerView.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
