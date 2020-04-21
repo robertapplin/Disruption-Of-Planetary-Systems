@@ -32,7 +32,6 @@ struct InitHeaderData {
   static std::size_t numberOfTimeStep(double planetDistance);
   static double trueAnomaly(double planetDistance);
 
-  static bool m_useDefaults;
   static std::unique_ptr<InitHeaderParams> m_fixedHeaderParams;
   static std::map<double, InitHeaderParams> m_defaultHeaderParams;
 
@@ -53,8 +52,6 @@ struct InitSimulationParams {
                        std::size_t inclination);
   ~InitSimulationParams();
 
-  bool hasSinglePlanet() const;
-
   bool operator!=(InitSimulationParams const &otherParams) const;
 
   std::string m_filename;
@@ -63,6 +60,15 @@ struct InitSimulationParams {
   std::size_t m_orientationIndex;
   std::size_t m_phi;
   std::size_t m_inclination;
+};
+
+/*
+Other settings used for the simulation
+*/
+struct OtherSimulationSettings {
+  static bool m_hasSinglePlanet;
+  static bool m_combinePlanetResults;
+  static bool m_useDefaults;
 };
 
 #endif /* INITSIMULATIONPARAMS_H */

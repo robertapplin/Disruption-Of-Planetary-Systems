@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <fstream>
-
 #include <mutex>
 
 using namespace SimulationConstants;
@@ -23,16 +22,24 @@ OutFileProcessor::OutFileProcessor(std::string const &directory)
 OutFileProcessor::~OutFileProcessor() {}
 
 void OutFileProcessor::resetProcessor(std::size_t numberOfOutFiles) {
-  m_results.clear();
+  m_resultsA.clear();
+  m_resultsB.clear();
   m_taskRunner.setTask("Processing out files...", 20.0, 100.0);
   m_taskRunner.setNumberOfSteps(numberOfOutFiles);
 }
 
-bool OutFileProcessor::processOutFiles(
+bool OutFileProcessor::performAnalysis(
     std::vector<InitSimulationParams> const &simulationParameters) {
   resetProcessor(simulationParameters.size());
-  initializeResults(simulationParameters);
 
+  processOutFiles(simulationParameters);
+
+  saveResults();
+  return true;
+}
+
+void OutFileProcessor::processOutFiles(
+    std::vector<InitSimulationParams> const &simulationParameters) {
   ThreadPool pool(5);
 
   for (auto const &parameters : simulationParameters) {
@@ -46,14 +53,11 @@ bool OutFileProcessor::processOutFiles(
       }
     });
   }
-
-  saveResults();
-  return true;
 }
 
 void OutFileProcessor::processOutFile(InitSimulationParams const &parameters) {
   auto const bodies = loadOutFile(parameters);
-  if (parameters.hasSinglePlanet())
+  if (OtherSimulationSettings::m_hasSinglePlanet)
     computeSimulationResults(parameters, *bodies[0], *bodies[1], *bodies[2],
                              parameters.m_planetDistances[0]);
   else
@@ -65,14 +69,15 @@ void OutFileProcessor::computeSimulationResults4Body(
     InitSimulationParams const &parameters, Body const &blackHole,
     Body const &star, Body const &planetA, Body const &planetB) {
   computeSimulationResults(parameters, blackHole, star, planetA,
-                           parameters.m_planetDistances[0]);
+                           parameters.m_planetDistances[0], PlanetID::A);
   computeSimulationResults(parameters, blackHole, star, planetB,
-                           parameters.m_planetDistances[1]);
+                           parameters.m_planetDistances[1], PlanetID::B);
 }
 
 void OutFileProcessor::computeSimulationResults(
     InitSimulationParams const &parameters, Body const &blackHole,
-    Body const &star, Body const &planet, double planetDistance) {
+    Body const &star, Body const &planet, double planetDistance,
+    PlanetID const &planetID) {
   auto const stepIndex = planet.numberOfTimeSteps() - 1;
 
   auto const boundToBlackHole = isBound(planet, blackHole, stepIndex);
@@ -85,12 +90,12 @@ void OutFileProcessor::computeSimulationResults(
 
   addResult(parameters.m_pericentre, planetDistance, boundToBlackHole,
             boundToStar, bhOrbitProps.first, starOrbitProps.first,
-            bhOrbitProps.second, starOrbitProps.second);
+            bhOrbitProps.second, starOrbitProps.second, planetID);
 }
 
 std::vector<std::unique_ptr<Body>>
 OutFileProcessor::loadOutFile(InitSimulationParams const &parameters) const {
-  if (parameters.hasSinglePlanet())
+  if (OtherSimulationSettings::m_hasSinglePlanet)
     return loadOutFile3Body(parameters.m_filename);
   return loadOutFile4Body(parameters.m_filename);
 }
@@ -236,27 +241,119 @@ double OutFileProcessor::calculateEccentricity(Body const &body1,
   return sqrt(1.0 - pow(h, 2) / (G * body1.mass() * semiMajorAxis));
 }
 
-void OutFileProcessor::saveResults() const {
-  auto fileManager =
-      std::make_unique<FileManager>(m_directory + "simulation_results.txt");
-  fileManager->createNewFile(generateResultsFileText());
+void OutFileProcessor::addResult(double pericentre, double planetDistance,
+                                 bool bhBound, bool starBound,
+                                 double semiMajorBh, double semiMajorStar,
+                                 double eccentricityBh, double eccentricityStar,
+                                 PlanetID const &planetID) {
+  if (planetID == PlanetID::None || planetID == PlanetID::A) {
+    addResult(m_resultsA, pericentre, planetDistance, bhBound, starBound,
+              semiMajorBh, semiMajorStar, eccentricityBh, eccentricityStar);
+  } else if (planetID == PlanetID::B) {
+    addResult(m_resultsB, pericentre, planetDistance, bhBound, starBound,
+              semiMajorBh, semiMajorStar, eccentricityBh, eccentricityStar);
+  }
 }
 
-std::string OutFileProcessor::generateResultsFileText() const {
-  std::string fileText =
+void OutFileProcessor::addResult(
+    std::map<std::pair<double, double>, MutableResult> &results,
+    double pericentre, double planetDistance, bool bhBound, bool starBound,
+    double semiMajorBh, double semiMajorStar, double eccentricityBh,
+    double eccentricityStar) {
+  if (!updateResult(results, pericentre, planetDistance, bhBound, starBound,
+                    semiMajorBh, semiMajorStar, eccentricityBh,
+                    eccentricityStar)) {
+    std::unique_lock<std::mutex> lock(m_mutex);
+    results[std::make_pair(pericentre, planetDistance)] = MutableResult(
+        calculateHillsRadius(pericentre), bhBound, starBound, semiMajorBh,
+        semiMajorStar, eccentricityBh, eccentricityStar);
+  }
+}
+
+bool OutFileProcessor::updateResult(
+    std::map<std::pair<double, double>, MutableResult> &results,
+    double pericentre, double planetDistance, bool bhBound, bool starBound,
+    double semiMajorBh, double semiMajorStar, double eccentricityBh,
+    double eccentricityStar) {
+  auto const predicate = [&pericentre, &planetDistance](auto const &result) {
+    return pericentre == result.first.first &&
+           planetDistance == result.first.second;
+  };
+  return updateResult(results, pericentre, planetDistance, bhBound, starBound,
+                      semiMajorBh, semiMajorStar, eccentricityBh,
+                      eccentricityStar, predicate);
+}
+
+template <typename Predicate>
+bool OutFileProcessor::updateResult(
+    std::map<std::pair<double, double>, MutableResult> &results,
+    double pericentre, double planetDistance, bool bhBound, bool starBound,
+    double semiMajorBh, double semiMajorStar, double eccentricityBh,
+    double eccentricityStar, Predicate const &predicate) {
+  std::unique_lock<std::mutex> lock(m_mutex);
+
+  auto const iter = std::find_if(results.begin(), results.end(), predicate);
+  if (iter != results.end()) {
+    results[std::make_pair(pericentre, planetDistance)] =
+        iter->second + MutableResult(calculateHillsRadius(pericentre), bhBound,
+                                     starBound, semiMajorBh, semiMajorStar,
+                                     eccentricityBh, eccentricityStar);
+    return true;
+  }
+  return false;
+}
+
+void OutFileProcessor::saveResults() const {
+  if (OtherSimulationSettings::m_hasSinglePlanet)
+    save3BodyResults();
+  else
+    save4BodyResults();
+}
+
+void OutFileProcessor::save3BodyResults() const {
+  saveResults("simulation_results.txt", generateResultsFileText(m_resultsA));
+}
+
+void OutFileProcessor::save4BodyResults() const {
+  saveResults("simulation_resultsA.txt", generateResultsFileText(m_resultsA));
+  saveResults("simulation_resultsB.txt", generateResultsFileText(m_resultsB));
+
+  if (OtherSimulationSettings::m_combinePlanetResults)
+    saveResults("simulation_results.txt",
+                generateResultsFileText(combineResults()));
+}
+
+void OutFileProcessor::saveResults(std::string const &filename,
+                                   std::string const &fileText) const {
+  auto fileManager = std::make_unique<FileManager>(m_directory + filename);
+  auto const header =
       "Pericentre  PlanetDistance  HillsRadius  BhBoundFraction  "
       "StarBoundFraction  UnboundFraction  BhBoundFractionError  "
       "StarBoundFractionError  UnboundFractionError  SemiMajorBh  "
       "SemiMajorStar  EccentricityBh  EccentricityStar";
-  for (auto const &result : m_results)
-    fileText += generateResultFileLine(*result);
+  fileManager->createNewFile(header + fileText);
+}
+
+std::map<std::pair<double, double>, MutableResult>
+OutFileProcessor::combineResults() const {
+  auto combinedResults = m_resultsA;
+  combinedResults.insert(m_resultsB.begin(), m_resultsB.end());
+  return combinedResults;
+}
+
+std::string OutFileProcessor::generateResultsFileText(
+    std::map<std::pair<double, double>, MutableResult> const &results) const {
+  std::string fileText;
+  for (auto const &result : results)
+    fileText += generateResultFileLine(result.first, result.second);
   return std::move(fileText);
 }
 
-std::string
-OutFileProcessor::generateResultFileLine(SimulationResult const &result) const {
-  return "\n" + std::to_string(result.pericentre()) + " " +
-         std::to_string(result.planetDistance()) + " " +
+std::string OutFileProcessor::generateResultFileLine(
+    std::pair<double, double> const &parameters,
+    MutableResult const &result) const {
+  return "\n" + std::to_string(parameters.first) + " " +
+         std::to_string(parameters.second) + " " +
          std::to_string(result.hillsRadius()) + " " +
          std::to_string(result.bhBoundFraction()) + " " +
          std::to_string(result.starBoundFraction()) + " " +
@@ -268,45 +365,4 @@ OutFileProcessor::generateResultFileLine(SimulationResult const &result) const {
          std::to_string(result.semiMajorStar()) + " " +
          std::to_string(result.eccentricityBh()) + " " +
          std::to_string(result.eccentricityStar());
-}
-
-void OutFileProcessor::initializeResults(
-    std::vector<InitSimulationParams> const &simulationParameters) {
-  for (auto const &parameters : simulationParameters) {
-    auto const pericentre = parameters.m_pericentre;
-    initializeResult(pericentre, parameters.m_planetDistances[0]);
-    if (!parameters.hasSinglePlanet())
-      initializeResult(pericentre, parameters.m_planetDistances[1]);
-  }
-}
-
-void OutFileProcessor::initializeResult(double pericentre,
-                                        double planetDistance) {
-  if (!haveResult(pericentre, planetDistance))
-    m_results.emplace_back(std::make_unique<SimulationResult>(
-        pericentre, planetDistance, calculateHillsRadius(pericentre)));
-}
-
-bool OutFileProcessor::haveResult(double pericentre,
-                                  double planetDistance) const {
-  for (auto const &result : m_results)
-    if (result->sameParameters(pericentre, planetDistance))
-      return true;
-  return false;
-}
-
-void OutFileProcessor::addResult(double pericentre, double planetDistance,
-                                 bool bhBound, bool starBound,
-                                 double semiMajorBh, double semiMajorStar,
-                                 double eccentricityBh,
-                                 double eccentricityStar) {
-  std::unique_lock<std::mutex> lock(m_mutex);
-  for (auto const &result : m_results) {
-    if (result->sameParameters(pericentre, planetDistance)) {
-      result->updateCounts(bhBound, starBound);
-      result->updateAverages(semiMajorBh, semiMajorStar, eccentricityBh,
-                             eccentricityStar);
-      return;
-    }
-  }
 }

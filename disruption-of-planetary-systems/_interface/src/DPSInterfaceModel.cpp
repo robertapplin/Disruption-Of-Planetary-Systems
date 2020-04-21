@@ -42,10 +42,19 @@ void DPSInterfaceModel::setupInitFileSimulator() {
 
 void DPSInterfaceModel::updateNumberOfBodies(std::size_t numberOfBodies) {
   InitHeaderData::m_fixedHeaderParams->m_numberOfBodies = numberOfBodies;
+  updateHasSinglePlanet(numberOfBodies == 3);
+}
+
+void DPSInterfaceModel::updateHasSinglePlanet(bool hasSinglePlanet) {
+  OtherSimulationSettings::m_hasSinglePlanet = hasSinglePlanet;
+}
+
+void DPSInterfaceModel::updateCombinePlanetResults(bool combineResults) {
+  OtherSimulationSettings::m_combinePlanetResults = combineResults;
 }
 
 void DPSInterfaceModel::updateUseDefaultHeaderParams(bool useDefaults) {
-  InitHeaderData::m_useDefaults = useDefaults;
+  OtherSimulationSettings::m_useDefaults = useDefaults;
 }
 
 void DPSInterfaceModel::updateTimeStep(double timeStep) {
@@ -71,18 +80,35 @@ bool DPSInterfaceModel::validate(
     validInput = false;
     logger.addLog(LogType::Warning, "Pericentre field is empty.");
   }
+
   if (planetDistancesA.empty()) {
     validInput = false;
     logger.addLog(LogType::Warning, "Planet distance field is empty.");
   }
-  if (InitHeaderData::m_fixedHeaderParams->m_numberOfBodies == 4 &&
-      planetDistancesA.size() != planetDistancesB.size()) {
+
+  bool multiBodies = InitHeaderData::m_fixedHeaderParams->m_numberOfBodies == 4;
+  if (multiBodies && planetDistancesA.size() != planetDistancesB.size()) {
     validInput = false;
     logger.addLog(LogType::Warning,
                   "Planet distance fields are not equal in size.");
+  } else if (multiBodies &&
+             !validatePlanetDistances(planetDistancesA, planetDistancesB)) {
+    validInput = false;
+    logger.addLog(
+        LogType::Warning,
+        "The Planet B distances must be larger than Planet A distances.");
   }
 
   return validInput;
+}
+
+bool DPSInterfaceModel::validatePlanetDistances(
+    std::vector<std::string> const &planetDistancesA,
+    std::vector<std::string> const &planetDistancesB) const {
+  for (auto i = 0u; i < planetDistancesA.size(); ++i)
+    if (std::stoi(planetDistancesA[i]) >= std::stoi(planetDistancesB[i]))
+      return false;
+  return true;
 }
 
 void DPSInterfaceModel::run(std::string const &pericentres,
@@ -124,16 +150,17 @@ bool DPSInterfaceModel::generateInitFiles(
 
 bool DPSInterfaceModel::simulateInitFiles(
     std::vector<InitSimulationParams> const &simParameters) const {
-  auto const simulationProcess = [&]() {
-    return m_initFileSimulator->simulateInitFiles(simParameters);
-  };
-  return runProcess(simulationProcess, "Simulating init files");
+  // auto const simulationProcess = [&]() {
+  //  return m_initFileSimulator->simulateInitFiles(simParameters);
+  //};
+  // return runProcess(simulationProcess, "Simulating init files");
+  return true;
 }
 
 void DPSInterfaceModel::processOutFiles(
     std::vector<InitSimulationParams> const &simParameters) const {
   auto const dataAnalysisProcess = [&]() {
-    return m_outFileProcessor->processOutFiles(simParameters);
+    return m_outFileProcessor->performAnalysis(simParameters);
   };
   (void)runProcess(dataAnalysisProcess, "Processing out files");
 }

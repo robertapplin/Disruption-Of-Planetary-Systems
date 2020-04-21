@@ -39,6 +39,7 @@ QValidator *DPSInterfaceView::createValidator(QString const &regex) {
 
 void DPSInterfaceView::handleNumberOfBodiesChanged(int value) {
   setPlanetDistancesBEnabled(value == 4);
+  setPlanetDistanceDefaults(value == 4);
 }
 
 void DPSInterfaceView::handleUseDefaultHeaderParamsChanged(int state) {
@@ -47,6 +48,7 @@ void DPSInterfaceView::handleUseDefaultHeaderParamsChanged(int state) {
 
 void DPSInterfaceView::setPlanetDistancesBEnabled(bool enable) {
   m_ui.lePlanetDistancesB->setEnabled(enable);
+  m_ui.ckCombinePlanetResults->setEnabled(enable);
 }
 
 void DPSInterfaceView::setInputHeaderParametersEnabled(bool enable) {
@@ -55,12 +57,23 @@ void DPSInterfaceView::setInputHeaderParametersEnabled(bool enable) {
   m_ui.sbTrueAnomaly->setEnabled(enable);
 }
 
+void DPSInterfaceView::setPlanetDistanceDefaults(bool twoPlanets) {
+  if (twoPlanets)
+    m_ui.lePlanetDistancesA->setText("1,2,3,5,7,10,15,20,28");
+  else
+    m_ui.lePlanetDistancesA->setText("1,2,3,5,10,20,30,40,50");
+}
+
 std::string DPSInterfaceView::directory() const {
   return m_ui.leDirectory->text().toStdString();
 }
 
 std::size_t DPSInterfaceView::numberOfBodies() const {
   return static_cast<std::size_t>(m_ui.sbNumberOfBodies->value());
+}
+
+bool DPSInterfaceView::combinePlanetResults() const {
+  return m_ui.ckCombinePlanetResults->isChecked();
 }
 
 bool DPSInterfaceView::useDefaultHeaderParams() const {

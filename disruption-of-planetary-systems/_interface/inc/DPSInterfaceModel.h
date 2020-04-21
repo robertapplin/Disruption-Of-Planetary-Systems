@@ -20,6 +20,8 @@ public:
   ~DPSInterfaceModel();
 
   void updateNumberOfBodies(std::size_t numberOfBodies);
+  void updateHasSinglePlanet(bool hasSinglePlanet);
+  void updateCombinePlanetResults(bool combineResults);
   void updateUseDefaultHeaderParams(bool useDefaults);
   void updateTimeStep(double timeStep);
   void updateNumberOfTimeSteps(std::size_t numberOfTimeSteps);
@@ -35,6 +37,9 @@ private:
   bool validate(std::string const &pericentres,
                 std::vector<std::string> const &planetDistancesA,
                 std::vector<std::string> const &planetDistancesB) const;
+  bool validatePlanetDistances(
+      std::vector<std::string> const &planetDistancesA,
+      std::vector<std::string> const &planetDistancesB) const;
 
   void runAll(std::vector<std::string> const &pericentres,
               std::vector<std::string> const &planetDistancesA,

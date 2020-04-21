@@ -13,6 +13,7 @@ DPSInterfacePresenter::~DPSInterfacePresenter() {}
 
 void DPSInterfacePresenter::setInitHeaderParams() {
   m_model->updateNumberOfBodies(m_view->numberOfBodies());
+  m_model->updateCombinePlanetResults(m_view->combinePlanetResults());
   m_model->updateUseDefaultHeaderParams(m_view->useDefaultHeaderParams());
   m_model->updateTimeStep(m_view->timeStep());
   m_model->updateNumberOfTimeSteps(m_view->numberOfTimeSteps());

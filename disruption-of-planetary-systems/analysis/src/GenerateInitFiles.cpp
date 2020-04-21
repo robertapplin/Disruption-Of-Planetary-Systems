@@ -259,7 +259,7 @@ std::string InitFileGenerator::generateSimulationParametersText(
 
 std::string InitFileGenerator::generateSimulationParametersHeader(
     std::vector<InitSimulationParams> const &parameters) const {
-  if (parameters[0].hasSinglePlanet())
+  if (OtherSimulationSettings::m_hasSinglePlanet)
     return "Index  Pericentre  PlanetDistance  Phi  Inclination";
   return "Index  Pericentre  PlanetDistanceA  PlanetDistanceB  Phi  "
          "Inclination";
@@ -277,9 +277,9 @@ std::string InitFileGenerator::generateSimulationParametersLine(
 std::string InitFileGenerator::generateSimulationPlanetDistancesSubLine(
     InitSimulationParams const &parameters) const {
   auto const subLine = formatSimParameter(parameters.m_planetDistances[0]);
-  if (parameters.hasSinglePlanet())
+  if (OtherSimulationSettings::m_hasSinglePlanet)
     return std::move(subLine);
-  return subLine + formatSimParameter(parameters.m_planetDistances[1]);
+  return subLine + " " + formatSimParameter(parameters.m_planetDistances[1]);
 }
 
 bool InitFileGenerator::isThreeBodies() const {

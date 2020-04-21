@@ -29,19 +29,19 @@ std::size_t InitHeaderData::numberOfBodies() {
 }
 
 double InitHeaderData::timeStep(double planetDistance) {
-  if (m_useDefaults)
+  if (OtherSimulationSettings::m_useDefaults)
     return getDefaultHeaderParams(planetDistance).m_timeStep;
   return m_fixedHeaderParams->m_timeStep;
 }
 
 std::size_t InitHeaderData::numberOfTimeStep(double planetDistance) {
-  if (m_useDefaults)
+  if (OtherSimulationSettings::m_useDefaults)
     return getDefaultHeaderParams(planetDistance).m_numberOfTimeSteps;
   return m_fixedHeaderParams->m_numberOfTimeSteps;
 }
 
 double InitHeaderData::trueAnomaly(double planetDistance) {
-  if (m_useDefaults)
+  if (OtherSimulationSettings::m_useDefaults)
     return getDefaultHeaderParams(planetDistance).m_trueAnomaly;
   return m_fixedHeaderParams->m_trueAnomaly;
 }
@@ -56,8 +56,6 @@ InitHeaderData::getDefaultHeaderParams(double planetDistance) {
       ->second;
 }
 
-bool InitHeaderData::m_useDefaults = false;
-
 std::unique_ptr<InitHeaderParams> InitHeaderData::m_fixedHeaderParams =
     std::make_unique<InitHeaderParams>();
 
@@ -68,7 +66,7 @@ std::map<double, InitHeaderParams> InitHeaderData::m_defaultHeaderParams =
         {20.0, InitHeaderParams(0.1, 2500, 168.0)},
         {30.0, InitHeaderParams(0.1, 4000, 170.0)},
         {40.0, InitHeaderParams(0.1, 6500, 172.0)},
-        {50.0, InitHeaderParams(0.1, 14000, 173.0)},
+        {50.0, InitHeaderParams(0.1, 14000, 173.5)},
         {60.0, InitHeaderParams(0.1, 18000, 174.0)},
         {100.0, InitHeaderParams(0.1, 24000, 175.0)}};
 ;
@@ -98,11 +96,16 @@ InitSimulationParams::InitSimulationParams(
 
 InitSimulationParams::~InitSimulationParams() {}
 
-bool InitSimulationParams::hasSinglePlanet() const {
-  return m_planetDistances.size() == 1;
-}
-
 bool InitSimulationParams::operator!=(
     InitSimulationParams const &otherParams) const {
   return m_filename != otherParams.m_filename;
 }
+
+/*
+Other settings used for the simulation
+*/
+bool OtherSimulationSettings::m_hasSinglePlanet = true;
+
+bool OtherSimulationSettings::m_combinePlanetResults = false;
+
+bool OtherSimulationSettings::m_useDefaults = true;

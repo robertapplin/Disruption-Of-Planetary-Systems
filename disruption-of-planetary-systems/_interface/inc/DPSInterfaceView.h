@@ -17,6 +17,7 @@ public:
 
   std::string directory() const;
   std::size_t numberOfBodies() const;
+  bool combinePlanetResults() const;
   bool useDefaultHeaderParams() const;
   double timeStep() const;
   std::size_t numberOfTimeSteps() const;
@@ -40,6 +41,8 @@ private:
 
   void setPlanetDistancesBEnabled(bool enable);
   void setInputHeaderParametersEnabled(bool enable);
+
+  void setPlanetDistanceDefaults(bool twoPlanets);
 
   QValidator *createValidator(QString const &regex);
 

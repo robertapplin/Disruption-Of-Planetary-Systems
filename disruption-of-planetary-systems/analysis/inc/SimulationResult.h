@@ -1,22 +1,43 @@
 #ifndef SIMULATION_RESULTS_H
 #define SIMULATION_RESULTS_H
 
-#include <vector>
+#include <string>
 
-class SimulationResult {
-public:
-  SimulationResult(double pericentre, double planetDistance,
-                   double hillsRadius);
+struct SimulationResult {
+  SimulationResult();
+  SimulationResult(double hillsRadius, bool bhBound, bool starBound,
+                   double semiMajorBh, double semiMajorStar,
+                   double eccentricityBh, double eccentricityStar);
+  SimulationResult(double hillsRadius, std::size_t bhBoundCount,
+                   std::size_t starBoundCount, std::size_t totalCount,
+                   double sumSemiMajorBh, double sumSemiMajorStar,
+                   double sumEccentricityBh, double sumEccentricityStar);
   ~SimulationResult();
 
-  void updateCounts(bool bhBound, bool starBound);
-  void updateAverages(double semiMajorBh, double semiMajorStar,
-                      double eccentricityBh, double eccentricityStar);
+  double m_hillsRadius;
+  double m_sumSemiMajorBh;
+  double m_sumSemiMajorStar;
+  double m_sumEccentricityBh;
+  double m_sumEccentricityStar;
+  std::size_t m_bhBoundCount;
+  std::size_t m_starBoundCount;
+  std::size_t m_totalCount;
+};
 
-  bool sameParameters(double pericentre, double planetDistance) const;
+class MutableResult {
+public:
+  MutableResult();
+  MutableResult(double hillsRadius, bool bhBound, bool starBound,
+                double semiMajorBh, double semiMajorStar, double eccentricityBh,
+                double eccentricityStar);
+  MutableResult(double hillsRadius, std::size_t bhBoundCount,
+                std::size_t starBoundCount, std::size_t totalCount,
+                double sumSemiMajorBh, double sumSemiMajorStar,
+                double sumEccentricityBh, double sumEccentricityStar);
+  ~MutableResult();
 
-  double pericentre() const;
-  double planetDistance() const;
+  MutableResult operator+(MutableResult const &otherResult) const;
+
   double hillsRadius() const;
 
   double bhBoundFraction() const;
@@ -33,16 +54,11 @@ public:
   double eccentricityStar() const;
 
 private:
-  double m_pericentre;
-  double m_planetDistance;
-  double m_hillsRadius;
-  double m_sumSemiMajorBh;
-  double m_sumSemiMajorStar;
-  double m_sumEccentricityBh;
-  double m_sumEccentricityStar;
-  std::size_t m_bhBoundCount;
-  std::size_t m_starBoundCount;
-  std::size_t m_totalCount;
+  void updateCounts(bool bhBound, bool starBound);
+  void updateAverages(double semiMajorBh, double semiMajorStar,
+                      double eccentricityBh, double eccentricityStar);
+
+  mutable SimulationResult m_result;
 };
 
 #endif /* SIMULATION_RESULTS_H */
