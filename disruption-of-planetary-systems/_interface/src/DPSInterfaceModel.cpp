@@ -1,11 +1,13 @@
 #include "DPSInterfaceModel.h"
+#include "DPSInterfacePresenter.h"
 #include "GenerateInitFiles.h"
+#include "InitSimulationParams.h"
 #include "ProcessOutFiles.h"
-#include "SimParameters.h"
 #include "SimulateInitFiles.h"
 
 #include "Logger.h"
 #include "PerformanceChecker.h"
+#include "TaskRunner.h"
 
 #include <boost/algorithm/string.hpp>
 
@@ -20,15 +22,17 @@ std::vector<std::string> splitStringByDelimiter(std::string const &str,
 
 } // namespace
 
-DPSInterfaceModel::DPSInterfaceModel(std::string const &directory,
-                                     double timeStep,
-                                     std::size_t numberOfTimeSteps,
-                                     double trueAnomaly)
-    : m_directory(directory),
-      m_initFileGenerator(std::make_unique<InitFileGenerator>(
-          m_directory, timeStep, numberOfTimeSteps, trueAnomaly)),
+DPSInterfaceModel::DPSInterfaceModel(DPSInterfacePresenter *presenter,
+                                     std::string const &directory)
+    : m_presenter(presenter), m_directory(directory),
+      m_initFileGenerator(std::make_unique<InitFileGenerator>(m_directory)),
       m_outFileProcessor(std::make_unique<OutFileProcessor>(m_directory)) {
+  setupInitFileSimulator();
+}
 
+DPSInterfaceModel::~DPSInterfaceModel() {}
+
+void DPSInterfaceModel::setupInitFileSimulator() {
   auto const split = splitStringByDelimiter(m_directory, ":");
   auto const drive = split[0] + ":";
   auto subDir = split[1];
@@ -36,10 +40,39 @@ DPSInterfaceModel::DPSInterfaceModel(std::string const &directory,
   m_initFileSimulator = std::make_unique<InitFileSimulator>(drive, subDir);
 }
 
-DPSInterfaceModel::~DPSInterfaceModel() {}
+void DPSInterfaceModel::updateNumberOfBodies(std::size_t numberOfBodies) {
+  InitHeaderData::m_fixedHeaderParams->m_numberOfBodies = numberOfBodies;
+  updateHasSinglePlanet(numberOfBodies == 3);
+}
 
-bool DPSInterfaceModel::validate(std::string const &pericentres,
-                                 std::string const &planetDistances) const {
+void DPSInterfaceModel::updateHasSinglePlanet(bool hasSinglePlanet) {
+  OtherSimulationSettings::m_hasSinglePlanet = hasSinglePlanet;
+}
+
+void DPSInterfaceModel::updateCombinePlanetResults(bool combineResults) {
+  OtherSimulationSettings::m_combinePlanetResults = combineResults;
+}
+
+void DPSInterfaceModel::updateUseDefaultHeaderParams(bool useDefaults) {
+  OtherSimulationSettings::m_useDefaults = useDefaults;
+}
+
+void DPSInterfaceModel::updateTimeStep(double timeStep) {
+  InitHeaderData::m_fixedHeaderParams->m_timeStep = timeStep;
+}
+
+void DPSInterfaceModel::updateNumberOfTimeSteps(std::size_t numberOfTimeSteps) {
+  InitHeaderData::m_fixedHeaderParams->m_numberOfTimeSteps = numberOfTimeSteps;
+}
+
+void DPSInterfaceModel::updateTrueAnomaly(double trueAnomaly) {
+  InitHeaderData::m_fixedHeaderParams->m_trueAnomaly = trueAnomaly;
+}
+
+bool DPSInterfaceModel::validate(
+    std::string const &pericentres,
+    std::vector<std::string> const &planetDistancesA,
+    std::vector<std::string> const &planetDistancesB) const {
   bool validInput(true);
 
   auto &logger = Logger::getInstance();
@@ -47,38 +80,56 @@ bool DPSInterfaceModel::validate(std::string const &pericentres,
     validInput = false;
     logger.addLog(LogType::Warning, "Pericentre field is empty.");
   }
-  if (planetDistances.empty()) {
+
+  if (planetDistancesA.empty()) {
     validInput = false;
     logger.addLog(LogType::Warning, "Planet distance field is empty.");
+  }
+
+  bool multiBodies = InitHeaderData::m_fixedHeaderParams->m_numberOfBodies == 4;
+  if (multiBodies && planetDistancesA.size() != planetDistancesB.size()) {
+    validInput = false;
+    logger.addLog(LogType::Warning,
+                  "Planet distance fields are not equal in size.");
+  } else if (multiBodies &&
+             !validatePlanetDistances(planetDistancesA, planetDistancesB)) {
+    validInput = false;
+    logger.addLog(
+        LogType::Warning,
+        "The Planet B distances must be larger than Planet A distances.");
   }
 
   return validInput;
 }
 
-void DPSInterfaceModel::updateTimeStep(double timeStep) {
-  m_initFileGenerator->setTimeStep(timeStep);
-}
-
-void DPSInterfaceModel::updateNumberOfTimeSteps(std::size_t numberOfTimeSteps) {
-  m_initFileGenerator->setNumberOfTimeSteps(numberOfTimeSteps);
-}
-
-void DPSInterfaceModel::updateTrueAnomaly(double trueAnomaly) {
-  m_initFileGenerator->setTrueAnomaly(trueAnomaly);
+bool DPSInterfaceModel::validatePlanetDistances(
+    std::vector<std::string> const &planetDistancesA,
+    std::vector<std::string> const &planetDistancesB) const {
+  for (auto i = 0u; i < planetDistancesA.size(); ++i)
+    if (std::stoi(planetDistancesA[i]) >= std::stoi(planetDistancesB[i]))
+      return false;
+  return true;
 }
 
 void DPSInterfaceModel::run(std::string const &pericentres,
-                            std::string const &planetDistances,
-                            std::size_t numberOfOrientations) const {
-  if (validate(pericentres, planetDistances))
-    run(splitStringByDelimiter(pericentres, ","),
-        splitStringByDelimiter(planetDistances, ","), numberOfOrientations);
+                            std::string const &planetDistancesA,
+                            std::string const &planetDistancesB,
+                            std::size_t numberOfOrientations) {
+  auto const planetDistASplit = splitStringByDelimiter(planetDistancesA, ",");
+  auto const planetDistBSplit = splitStringByDelimiter(planetDistancesB, ",");
+  if (validate(pericentres, planetDistASplit, planetDistBSplit)) {
+    runAll(splitStringByDelimiter(pericentres, ","), planetDistASplit,
+           planetDistBSplit, numberOfOrientations);
+  }
+  m_presenter->unlockRunning();
 }
 
-void DPSInterfaceModel::run(std::vector<std::string> const &pericentres,
-                            std::vector<std::string> const &planetDistances,
-                            std::size_t numberOfOrientation) const {
-  if (generateInitFiles(pericentres, planetDistances, numberOfOrientation)) {
+void DPSInterfaceModel::runAll(std::vector<std::string> const &pericentres,
+                               std::vector<std::string> const &planetDistancesA,
+                               std::vector<std::string> const &planetDistancesB,
+                               std::size_t numberOfOrientation) const {
+  if (generateInitFiles(pericentres, planetDistancesA, planetDistancesB,
+                        numberOfOrientation)) {
     auto const simParameters = m_initFileGenerator->simulationParameters();
     if (simulateInitFiles(simParameters))
       processOutFiles(simParameters);
@@ -87,55 +138,41 @@ void DPSInterfaceModel::run(std::vector<std::string> const &pericentres,
 
 bool DPSInterfaceModel::generateInitFiles(
     std::vector<std::string> const &pericentres,
-    std::vector<std::string> const &planetDistances,
+    std::vector<std::string> const &planetDistancesA,
+    std::vector<std::string> const &planetDistancesB,
     std::size_t numberOfOrientation) const {
-  auto &logger = Logger::getInstance();
-  logger.addLog(LogType::Info, "Generating init files...");
-
-  try {
-    auto timer = TimeCheck();
-    m_initFileGenerator->generateInitFiles(pericentres, planetDistances,
-                                           numberOfOrientation);
-    logger.addLog(LogType::Info, "Generating init files: success (" +
-                                     std::to_string(timer.timeElapsed()) +
-                                     "s).");
-    return true;
-  } catch (std::runtime_error const &error) {
-    logger.addLog(LogType::Error, error.what());
-    return false;
-  }
+  auto const generateProcess = [&]() {
+    return m_initFileGenerator->generate(pericentres, planetDistancesA,
+                                         planetDistancesB, numberOfOrientation);
+  };
+  return runProcess(generateProcess, "Generating init files");
 }
 
 bool DPSInterfaceModel::simulateInitFiles(
-    std::vector<SimParameters *> const &simParameters) const {
-  auto &logger = Logger::getInstance();
-  logger.addLog(LogType::Info, "Simulating init files...");
-
-  try {
-    auto timer = TimeCheck();
-    m_initFileSimulator->simulateInitFiles(simParameters);
-    logger.addLog(LogType::Info, "Simulating init files: success (" +
-                                     std::to_string(timer.timeElapsed()) +
-                                     "s).");
-    return true;
-  } catch (std::runtime_error const &error) {
-    logger.addLog(LogType::Error, error.what());
-    return false;
-  }
+    std::vector<InitSimulationParams> const &simParameters) const {
+  // auto const simulationProcess = [&]() {
+  //  return m_initFileSimulator->simulateInitFiles(simParameters);
+  //};
+  // return runProcess(simulationProcess, "Simulating init files");
+  return true;
 }
 
 void DPSInterfaceModel::processOutFiles(
-    std::vector<SimParameters *> const &simParameters) const {
-  auto &logger = Logger::getInstance();
-  logger.addLog(LogType::Info, "Processing out files...");
+    std::vector<InitSimulationParams> const &simParameters) const {
+  auto const dataAnalysisProcess = [&]() {
+    return m_outFileProcessor->performAnalysis(simParameters);
+  };
+  (void)runProcess(dataAnalysisProcess, "Processing out files");
+}
 
+template <typename Process>
+bool DPSInterfaceModel::runProcess(
+    Process const &process, std::string const &processDescription) const {
   try {
-    auto timer = TimeCheck();
-    m_outFileProcessor->processOutFiles(simParameters);
-    logger.addLog(LogType::Info, "Processing out files: success (" +
-                                     std::to_string(timer.timeElapsed()) +
-                                     "s).");
+    return process();
   } catch (std::runtime_error const &error) {
-    logger.addLog(LogType::Error, error.what());
+    Logger::getInstance().addLog(
+        LogType::Error, processDescription + " failed: " + error.what());
+    return false;
   }
 }

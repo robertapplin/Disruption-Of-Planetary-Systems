@@ -1,5 +1,12 @@
 #include "Body.h"
 
+Body::Body(double mass, double x, double y, double z, double vx, double vy,
+           double vz)
+    : m_mass(mass) {
+  m_positions.emplace_back(XYZComponents(x, y, z));
+  m_velocities.emplace_back(XYZComponents(vx, vy, vz));
+}
+
 Body::Body(double mass, XYZComponents const &position,
            XYZComponents const &velocity)
     : m_mass(mass) {
@@ -29,7 +36,12 @@ XYZComponents Body::velocity(std::size_t index) const {
 
 double Body::relativePositionMagnitude(Body const &otherBody,
                                        std::size_t index) const {
-  return position(index).relativeMag(otherBody.position(index));
+  return relativePositionMagnitude(otherBody.position(index), index);
+}
+
+double Body::relativePositionMagnitude(XYZComponents const &otherXYZ,
+                                       std::size_t index) const {
+  return position(index).relativeMag(otherXYZ);
 }
 
 double Body::relativeVelocityMagnitude(Body const &otherBody,

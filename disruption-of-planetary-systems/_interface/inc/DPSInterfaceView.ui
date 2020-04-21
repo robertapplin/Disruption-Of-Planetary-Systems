@@ -23,65 +23,11 @@
       <property name="bottomMargin">
        <number>12</number>
       </property>
-      <item row="0" column="2">
-       <widget class="QLineEdit" name="leDirectory">
+      <item row="6" column="2">
+       <widget class="QDoubleSpinBox" name="sbTimeStep">
         <property name="enabled">
          <bool>false</bool>
         </property>
-        <property name="text">
-         <string>D:/FYP-Data/</string>
-        </property>
-        <property name="readOnly">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="lbDirectory">
-        <property name="text">
-         <string>Working directory</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="lbNumberOfTimeSteps">
-        <property name="text">
-         <string>Number of time steps</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="lbTimeStep">
-        <property name="text">
-         <string>Time step</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="lbTrueAnomaly">
-        <property name="text">
-         <string>True anomaly</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="2">
-       <widget class="QSpinBox" name="sbNumberOfTimeSteps">
-        <property name="minimum">
-         <number>1</number>
-        </property>
-        <property name="maximum">
-         <number>20000</number>
-        </property>
-        <property name="singleStep">
-         <number>200</number>
-        </property>
-        <property name="value">
-         <number>1200</number>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="2">
-       <widget class="QDoubleSpinBox" name="sbTimeStep">
         <property name="minimum">
          <double>0.000000000000000</double>
         </property>
@@ -96,8 +42,72 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="2">
+      <item row="2" column="2">
+       <widget class="QSpinBox" name="sbNumberOfBodies">
+        <property name="minimum">
+         <number>3</number>
+        </property>
+        <property name="maximum">
+         <number>4</number>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QLabel" name="lbNumberOfTimeSteps">
+        <property name="text">
+         <string>Number of time steps</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QLineEdit" name="leDirectory">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>D:/FYP-Data/</string>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0" colspan="3">
+       <widget class="QCheckBox" name="ckUseDefaultHeaderParameters">
+        <property name="text">
+         <string>Use defaults</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="lbTimeStep">
+        <property name="text">
+         <string>Time step</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="lbDirectory">
+        <property name="text">
+         <string>Working directory</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0">
+       <widget class="QLabel" name="lbTrueAnomaly">
+        <property name="text">
+         <string>True anomaly</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="2">
        <widget class="QDoubleSpinBox" name="sbTrueAnomaly">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="suffix">
          <string> (degrees)</string>
         </property>
@@ -111,7 +121,46 @@
          <double>179.900000000000006</double>
         </property>
         <property name="value">
-         <double>164.000000000000000</double>
+         <double>174.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="lbNumberOfBodies">
+        <property name="text">
+         <string>Number of bodies</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="2">
+       <widget class="QSpinBox" name="sbNumberOfTimeSteps">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="minimum">
+         <number>1</number>
+        </property>
+        <property name="maximum">
+         <number>30000</number>
+        </property>
+        <property name="singleStep">
+         <number>200</number>
+        </property>
+        <property name="value">
+         <number>18000</number>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0" colspan="3">
+       <widget class="QCheckBox" name="ckCombinePlanetResults">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Combine planet results</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -124,42 +173,14 @@
       <string>Parameters</string>
      </property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="1" column="0">
-       <widget class="QLabel" name="lbPlanetDistances">
-        <property name="text">
-         <string>Planet distances</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QLineEdit" name="lePericentres">
-        <property name="text">
-         <string>300</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="lbPlanetDistances_2">
-        <property name="text">
-         <string>Number of Realizations</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="lbPericentres">
-        <property name="text">
-         <string>Pericentres</string>
-        </property>
-       </widget>
-      </item>
       <item row="1" column="1">
-       <widget class="QLineEdit" name="lePlanetDistances">
+       <widget class="QLineEdit" name="lePlanetDistancesA">
         <property name="text">
-         <string>2,10,20,30,40,50,60,70,80</string>
+         <string>1,2,3,5,10,20,30,40,50</string>
         </property>
        </widget>
       </item>
-      <item row="3" column="1">
+      <item row="5" column="1">
        <spacer name="verticalSpacer">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
@@ -172,7 +193,21 @@
         </property>
        </spacer>
       </item>
-      <item row="2" column="1">
+      <item row="1" column="0">
+       <widget class="QLabel" name="lbPlanetDistances">
+        <property name="text">
+         <string>Planet distances</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="lePericentres">
+        <property name="text">
+         <string>100,200,300,400,500</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
        <widget class="QSpinBox" name="sbNumberOfOrientations">
         <property name="minimum">
          <number>1</number>
@@ -181,78 +216,33 @@
          <number>100</number>
         </property>
         <property name="value">
-         <number>4</number>
+         <number>20</number>
         </property>
        </widget>
       </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QGroupBox" name="gbRun">
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>50</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>16777215</width>
-       <height>50</height>
-      </size>
-     </property>
-     <property name="title">
-      <string>Run</string>
-     </property>
-     <layout class="QHBoxLayout" name="horizontalLayout">
-      <property name="spacing">
-       <number>0</number>
-      </property>
-      <property name="leftMargin">
-       <number>0</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
-       <number>8</number>
-      </property>
-      <item>
-       <spacer name="horizontalSpacer_2">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>150</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <widget class="QPushButton" name="pbRun">
+      <item row="4" column="0">
+       <widget class="QLabel" name="lbPlanetDistances_2">
         <property name="text">
-         <string>Run</string>
+         <string>Number of Realizations</string>
         </property>
        </widget>
       </item>
-      <item>
-       <spacer name="horizontalSpacer">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="lePlanetDistancesB">
+        <property name="enabled">
+         <bool>false</bool>
         </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>149</width>
-          <height>20</height>
-         </size>
+        <property name="text">
+         <string>13,17,23,25,30,35,40,45,50</string>
         </property>
-       </spacer>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="lbPericentres">
+        <property name="text">
+         <string>Pericentres</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>

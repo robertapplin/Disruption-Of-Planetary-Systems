@@ -2,53 +2,35 @@
 #include "DPSInterfaceModel.h"
 #include "DPSInterfaceView.h"
 
+#include <QtConcurrent/QtConcurrent>
+
 DPSInterfacePresenter::DPSInterfacePresenter(DPSInterfaceView *view,
                                              QWidget *parent)
     : QObject(parent), m_view(view),
-      m_model(std::make_unique<DPSInterfaceModel>(
-          m_view->directory(), m_view->timeStep(), m_view->numberOfTimeSteps(),
-          m_view->trueAnomaly())) {
-  connectPresenter();
-};
+      m_model(std::make_unique<DPSInterfaceModel>(this, m_view->directory())){};
 
 DPSInterfacePresenter::~DPSInterfacePresenter() {}
 
-void DPSInterfacePresenter::connectPresenter() {
-  connect(m_view, SIGNAL(timeStepChanged(double)), this,
-          SLOT(handleTimeStepChanged(double)));
-  connect(m_view, SIGNAL(numberTimeStepsChanged(std::size_t)), this,
-          SLOT(handleNumberOfTimeStepsChanged(std::size_t)));
-  connect(m_view, SIGNAL(trueAnomalyChanged(double)), this,
-          SLOT(handleTrueAnomalyChanged(double)));
-
-  connect(
-      m_view,
-      SIGNAL(runClicked(std::string const &, std::string const &, std::size_t)),
-      this,
-      SLOT(handleRunClicked(std::string const &, std::string const &,
-                            std::size_t)));
+void DPSInterfacePresenter::setInitHeaderParams() {
+  m_model->updateNumberOfBodies(m_view->numberOfBodies());
+  m_model->updateCombinePlanetResults(m_view->combinePlanetResults());
+  m_model->updateUseDefaultHeaderParams(m_view->useDefaultHeaderParams());
+  m_model->updateTimeStep(m_view->timeStep());
+  m_model->updateNumberOfTimeSteps(m_view->numberOfTimeSteps());
+  m_model->updateTrueAnomaly(m_view->trueAnomaly());
 }
 
 /*
   Handlers for events in view
 */
-void DPSInterfacePresenter::handleTimeStepChanged(double timeStep) {
-  m_model->updateTimeStep(timeStep);
+void DPSInterfacePresenter::handleRunClicked() {
+  setInitHeaderParams();
+  QtConcurrent::run(m_model.get(), &DPSInterfaceModel::run,
+                    m_view->pericentres(), m_view->planetDistancesA(),
+                    m_view->planetDistancesB(), m_view->numberOfOrientations());
 }
 
-void DPSInterfacePresenter::handleNumberOfTimeStepsChanged(
-    std::size_t numberOfTimeSteps) {
-  m_model->updateNumberOfTimeSteps(numberOfTimeSteps);
-}
-
-void DPSInterfacePresenter::handleTrueAnomalyChanged(double trueAnomaly) {
-  m_model->updateTrueAnomaly(trueAnomaly);
-}
-
-void DPSInterfacePresenter::handleRunClicked(std::string const &pericentres,
-                                             std::string const &planetDistances,
-                                             std::size_t numberOfOrientations) {
-  m_view->setRunning(true);
-  m_model->run(pericentres, planetDistances, numberOfOrientations);
-  m_view->setRunning(false);
-}
+/*
+  Status change in the model
+*/
+void DPSInterfacePresenter::unlockRunning() { emit unlockTaskRunner(); }
