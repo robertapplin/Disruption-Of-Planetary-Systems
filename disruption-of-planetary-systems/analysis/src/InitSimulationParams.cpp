@@ -28,28 +28,32 @@ std::size_t InitHeaderData::numberOfBodies() {
   return m_fixedHeaderParams->m_numberOfBodies;
 }
 
-double InitHeaderData::timeStep(double planetDistance) {
+double InitHeaderData::timeStep(double pericentre, double planetDistance) {
   if (OtherSimulationSettings::m_useDefaults)
-    return getDefaultHeaderParams(planetDistance).m_timeStep;
+    return getDefaultHeaderParams(pericentre, planetDistance).m_timeStep;
   return m_fixedHeaderParams->m_timeStep;
 }
 
-std::size_t InitHeaderData::numberOfTimeStep(double planetDistance) {
+std::size_t InitHeaderData::numberOfTimeStep(double pericentre,
+                                             double planetDistance) {
   if (OtherSimulationSettings::m_useDefaults)
-    return getDefaultHeaderParams(planetDistance).m_numberOfTimeSteps;
+    return getDefaultHeaderParams(pericentre, planetDistance)
+        .m_numberOfTimeSteps;
   return m_fixedHeaderParams->m_numberOfTimeSteps;
 }
 
-double InitHeaderData::trueAnomaly(double planetDistance) {
+double InitHeaderData::trueAnomaly(double pericentre, double planetDistance) {
   if (OtherSimulationSettings::m_useDefaults)
-    return getDefaultHeaderParams(planetDistance).m_trueAnomaly;
+    return getDefaultHeaderParams(pericentre, planetDistance).m_trueAnomaly;
   return m_fixedHeaderParams->m_trueAnomaly;
 }
 
 InitHeaderParams const &
-InitHeaderData::getDefaultHeaderParams(double planetDistance) {
-  auto const predicate = [&planetDistance](auto const &pair) {
-    return planetDistance < pair.first;
+InitHeaderData::getDefaultHeaderParams(double pericentre,
+                                       double planetDistance) {
+  auto const predicate = [&pericentre, &planetDistance](auto const &pair) {
+    return pericentre <= pair.first.first &&
+           planetDistance <= pair.first.second;
   };
   return std::find_if(m_defaultHeaderParams.begin(),
                       m_defaultHeaderParams.end(), predicate)
@@ -59,17 +63,51 @@ InitHeaderData::getDefaultHeaderParams(double planetDistance) {
 std::unique_ptr<InitHeaderParams> InitHeaderData::m_fixedHeaderParams =
     std::make_unique<InitHeaderParams>();
 
-std::map<double, InitHeaderParams> InitHeaderData::m_defaultHeaderParams =
-    std::map<double, InitHeaderParams>{
-        {5.0, InitHeaderParams(0.1, 800, 160.0)},
-        {10.0, InitHeaderParams(0.1, 1800, 166.0)},
-        {20.0, InitHeaderParams(0.1, 2500, 168.0)},
-        {30.0, InitHeaderParams(0.1, 4000, 170.0)},
-        {40.0, InitHeaderParams(0.1, 6500, 172.0)},
-        {50.0, InitHeaderParams(0.1, 14000, 173.5)},
-        {60.0, InitHeaderParams(0.1, 18000, 174.0)},
-        {100.0, InitHeaderParams(0.1, 24000, 175.0)}};
-;
+std::map<std::pair<double, double>, InitHeaderParams>
+    InitHeaderData::m_defaultHeaderParams =
+        std::map<std::pair<double, double>, InitHeaderParams>{
+            {std::make_pair(100.0, 5.0), InitHeaderParams(0.1, 3000, 170.0)},
+            {std::make_pair(100.0, 10.0), InitHeaderParams(0.1, 3500, 172.0)},
+            {std::make_pair(100.0, 20.0), InitHeaderParams(0.1, 12000, 174.5)},
+            {std::make_pair(100.0, 30.0), InitHeaderParams(0.1, 24000, 175.5)},
+            {std::make_pair(100.0, 40.0), InitHeaderParams(0.1, 30000, 176.5)},
+            {std::make_pair(100.0, 50.0), InitHeaderParams(0.1, 32000, 176.8)},
+            {std::make_pair(100.0, 60.0), InitHeaderParams(0.1, 35000, 177.0)},
+            {std::make_pair(200.0, 5.0), InitHeaderParams(0.1, 2000, 168.0)},
+            {std::make_pair(200.0, 10.0), InitHeaderParams(0.1, 3000, 171.0)},
+            {std::make_pair(200.0, 20.0), InitHeaderParams(0.1, 8000, 173.5)},
+            {std::make_pair(200.0, 30.0), InitHeaderParams(0.1, 13000, 174.5)},
+            {std::make_pair(200.0, 40.0), InitHeaderParams(0.1, 20000, 175.2)},
+            {std::make_pair(200.0, 50.0), InitHeaderParams(0.1, 28000, 176.0)},
+            {std::make_pair(200.0, 60.0), InitHeaderParams(0.1, 36000, 176.2)},
+            {std::make_pair(300.0, 5.0), InitHeaderParams(0.1, 800, 160.0)},
+            {std::make_pair(300.0, 10.0), InitHeaderParams(0.1, 2000, 167.0)},
+            {std::make_pair(300.0, 20.0), InitHeaderParams(0.1, 6000, 169.5)},
+            {std::make_pair(300.0, 30.0), InitHeaderParams(0.1, 8000, 171.5)},
+            {std::make_pair(300.0, 40.0), InitHeaderParams(0.1, 11000, 172.0)},
+            {std::make_pair(300.0, 50.0), InitHeaderParams(0.1, 14000, 173.5)},
+            {std::make_pair(300.0, 60.0), InitHeaderParams(0.1, 18000, 174.0)},
+            {std::make_pair(400.0, 5.0), InitHeaderParams(0.1, 800, 160.0)},
+            {std::make_pair(400.0, 10.0), InitHeaderParams(0.1, 2000, 166.0)},
+            {std::make_pair(400.0, 20.0), InitHeaderParams(0.1, 6000, 169.5)},
+            {std::make_pair(400.0, 30.0), InitHeaderParams(0.1, 8000, 171.5)},
+            {std::make_pair(400.0, 40.0), InitHeaderParams(0.1, 11000, 172.0)},
+            {std::make_pair(400.0, 50.0), InitHeaderParams(0.1, 15000, 173.5)},
+            {std::make_pair(400.0, 60.0), InitHeaderParams(0.1, 24000, 174.0)},
+            {std::make_pair(500.0, 5.0), InitHeaderParams(0.1, 800, 160.0)},
+            {std::make_pair(500.0, 10.0), InitHeaderParams(0.1, 2800, 165.0)},
+            {std::make_pair(500.0, 20.0), InitHeaderParams(0.1, 6000, 169.5)},
+            {std::make_pair(500.0, 30.0), InitHeaderParams(0.1, 12000, 171.5)},
+            {std::make_pair(500.0, 40.0), InitHeaderParams(0.1, 20000, 172.0)},
+            {std::make_pair(500.0, 50.0), InitHeaderParams(0.1, 30000, 173.5)},
+            {std::make_pair(500.0, 60.0), InitHeaderParams(0.1, 37000, 174.0)},
+            {std::make_pair(600.0, 5.0), InitHeaderParams(0.1, 1000, 158.0)},
+            {std::make_pair(600.0, 10.0), InitHeaderParams(0.1, 2800, 166.0)},
+            {std::make_pair(600.0, 20.0), InitHeaderParams(0.1, 6000, 168.0)},
+            {std::make_pair(600.0, 30.0), InitHeaderParams(0.1, 12000, 170.0)},
+            {std::make_pair(600.0, 40.0), InitHeaderParams(0.1, 20000, 172.0)},
+            {std::make_pair(600.0, 50.0), InitHeaderParams(0.1, 30000, 173.5)},
+            {std::make_pair(600.0, 60.0), InitHeaderParams(0.1, 37000, 174.0)}};
 
 /*
 The simulation parameters used to calculate body positions and velocities
@@ -106,6 +144,6 @@ Other settings used for the simulation
 */
 bool OtherSimulationSettings::m_hasSinglePlanet = true;
 
-bool OtherSimulationSettings::m_combinePlanetResults = false;
+bool OtherSimulationSettings::m_combinePlanetResults = true;
 
 bool OtherSimulationSettings::m_useDefaults = true;

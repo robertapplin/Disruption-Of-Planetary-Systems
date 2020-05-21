@@ -2,6 +2,7 @@
 #define SIMULATION_RESULTS_H
 
 #include <string>
+#include <vector>
 
 struct SimulationResult {
   SimulationResult();
@@ -10,18 +11,20 @@ struct SimulationResult {
                    double eccentricityBh, double eccentricityStar);
   SimulationResult(double hillsRadius, std::size_t bhBoundCount,
                    std::size_t starBoundCount, std::size_t totalCount,
-                   double sumSemiMajorBh, double sumSemiMajorStar,
-                   double sumEccentricityBh, double sumEccentricityStar);
+                   std::vector<double> semiMajorsBh,
+                   std::vector<double> semiMajorsStar,
+                   std::vector<double> eccentricitiesBh,
+                   std::vector<double> eccentricitiesStar);
   ~SimulationResult();
 
   double m_hillsRadius;
-  double m_sumSemiMajorBh;
-  double m_sumSemiMajorStar;
-  double m_sumEccentricityBh;
-  double m_sumEccentricityStar;
   std::size_t m_bhBoundCount;
   std::size_t m_starBoundCount;
   std::size_t m_totalCount;
+  std::vector<double> m_semiMajorsBh;
+  std::vector<double> m_semiMajorsStar;
+  std::vector<double> m_eccentricitiesBh;
+  std::vector<double> m_eccentricitiesStar;
 };
 
 class MutableResult {
@@ -32,8 +35,10 @@ public:
                 double eccentricityStar);
   MutableResult(double hillsRadius, std::size_t bhBoundCount,
                 std::size_t starBoundCount, std::size_t totalCount,
-                double sumSemiMajorBh, double sumSemiMajorStar,
-                double sumEccentricityBh, double sumEccentricityStar);
+                std::vector<double> semiMajorsBh,
+                std::vector<double> semiMajorsStar,
+                std::vector<double> eccentricitiesBh,
+                std::vector<double> eccentricitiesStar);
   ~MutableResult();
 
   MutableResult operator+(MutableResult const &otherResult) const;
@@ -48,10 +53,10 @@ public:
   double starBoundFractionError() const;
   double unboundFractionError() const;
 
-  double semiMajorBh() const;
-  double semiMajorStar() const;
-  double eccentricityBh() const;
-  double eccentricityStar() const;
+  std::vector<double> semiMajorsBh() const;
+  std::vector<double> semiMajorsStar() const;
+  std::vector<double> eccentricitiesBh() const;
+  std::vector<double> eccentricitiesStar() const;
 
 private:
   void updateCounts(bool bhBound, bool starBound);

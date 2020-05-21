@@ -1,4 +1,5 @@
 #include "DPSInterfaceModel.h"
+
 #include "DPSInterfacePresenter.h"
 #include "GenerateInitFiles.h"
 #include "InitSimulationParams.h"
@@ -8,6 +9,9 @@
 #include "Logger.h"
 #include "PerformanceChecker.h"
 #include "TaskRunner.h"
+
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 #include <boost/algorithm/string.hpp>
 
@@ -33,11 +37,12 @@ DPSInterfaceModel::DPSInterfaceModel(DPSInterfacePresenter *presenter,
 DPSInterfaceModel::~DPSInterfaceModel() {}
 
 void DPSInterfaceModel::setupInitFileSimulator() {
-  auto const split = splitStringByDelimiter(m_directory, ":");
-  auto const drive = split[0] + ":";
-  auto subDir = split[1];
-  subDir.erase(0, 1);
-  m_initFileSimulator = std::make_unique<InitFileSimulator>(drive, subDir);
+  auto const subStrings = splitStringByDelimiter(m_directory, ":");
+  auto const drive = subStrings[0] + ":";
+  auto subDirectory = subStrings[1];
+  subDirectory.erase(0, 1);
+  m_initFileSimulator =
+      std::make_unique<InitFileSimulator>(drive, subDirectory);
 }
 
 void DPSInterfaceModel::updateNumberOfBodies(std::size_t numberOfBodies) {
@@ -66,40 +71,32 @@ void DPSInterfaceModel::updateNumberOfTimeSteps(std::size_t numberOfTimeSteps) {
 }
 
 void DPSInterfaceModel::updateTrueAnomaly(double trueAnomaly) {
-  InitHeaderData::m_fixedHeaderParams->m_trueAnomaly = trueAnomaly;
+  InitHeaderData::m_fixedHeaderParams->m_trueAnomaly =
+      trueAnomaly * (M_PI / 180);
 }
 
 bool DPSInterfaceModel::validate(
     std::string const &pericentres,
     std::vector<std::string> const &planetDistancesA,
     std::vector<std::string> const &planetDistancesB) const {
-  bool validInput(true);
+  std::vector<std::string> messages;
 
-  auto &logger = Logger::getInstance();
-  if (pericentres.empty()) {
-    validInput = false;
-    logger.addLog(LogType::Warning, "Pericentre field is empty.");
+  if (pericentres.empty())
+    messages.emplace_back("Pericentre field is empty.");
+
+  if (planetDistancesA.empty())
+    messages.emplace_back("Planet distance field is empty.");
+
+  if (!OtherSimulationSettings::m_hasSinglePlanet) {
+    if (planetDistancesA.size() != planetDistancesB.size())
+      messages.emplace_back("Planet distance fields are not equal in size.");
+    else if (!validatePlanetDistances(planetDistancesA, planetDistancesB))
+      messages.emplace_back(
+          "The Planet B distances must be larger than Planet A distances.");
   }
 
-  if (planetDistancesA.empty()) {
-    validInput = false;
-    logger.addLog(LogType::Warning, "Planet distance field is empty.");
-  }
-
-  bool multiBodies = InitHeaderData::m_fixedHeaderParams->m_numberOfBodies == 4;
-  if (multiBodies && planetDistancesA.size() != planetDistancesB.size()) {
-    validInput = false;
-    logger.addLog(LogType::Warning,
-                  "Planet distance fields are not equal in size.");
-  } else if (multiBodies &&
-             !validatePlanetDistances(planetDistancesA, planetDistancesB)) {
-    validInput = false;
-    logger.addLog(
-        LogType::Warning,
-        "The Planet B distances must be larger than Planet A distances.");
-  }
-
-  return validInput;
+  Logger::getInstance().addLogs(LogType::Warning, messages);
+  return messages.empty();
 }
 
 bool DPSInterfaceModel::validatePlanetDistances(
@@ -117,10 +114,10 @@ void DPSInterfaceModel::run(std::string const &pericentres,
                             std::size_t numberOfOrientations) {
   auto const planetDistASplit = splitStringByDelimiter(planetDistancesA, ",");
   auto const planetDistBSplit = splitStringByDelimiter(planetDistancesB, ",");
-  if (validate(pericentres, planetDistASplit, planetDistBSplit)) {
+  if (validate(pericentres, planetDistASplit, planetDistBSplit))
     runAll(splitStringByDelimiter(pericentres, ","), planetDistASplit,
            planetDistBSplit, numberOfOrientations);
-  }
+
   m_presenter->unlockRunning();
 }
 
@@ -150,11 +147,10 @@ bool DPSInterfaceModel::generateInitFiles(
 
 bool DPSInterfaceModel::simulateInitFiles(
     std::vector<InitSimulationParams> const &simParameters) const {
-  // auto const simulationProcess = [&]() {
-  //  return m_initFileSimulator->simulateInitFiles(simParameters);
-  //};
-  // return runProcess(simulationProcess, "Simulating init files");
-  return true;
+  auto const simulationProcess = [&]() {
+    return m_initFileSimulator->simulateInitFiles(simParameters);
+  };
+  return runProcess(simulationProcess, "Simulating init files");
 }
 
 void DPSInterfaceModel::processOutFiles(

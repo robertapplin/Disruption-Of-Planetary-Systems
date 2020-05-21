@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 /*
@@ -28,15 +29,17 @@ struct InitHeaderData {
   ~InitHeaderData();
 
   static std::size_t numberOfBodies();
-  static double timeStep(double planetDistance);
-  static std::size_t numberOfTimeStep(double planetDistance);
-  static double trueAnomaly(double planetDistance);
+  static double timeStep(double pericentre, double planetDistance);
+  static std::size_t numberOfTimeStep(double pericentre, double planetDistance);
+  static double trueAnomaly(double pericentre, double planetDistance);
 
   static std::unique_ptr<InitHeaderParams> m_fixedHeaderParams;
-  static std::map<double, InitHeaderParams> m_defaultHeaderParams;
+  static std::map<std::pair<double, double>, InitHeaderParams>
+      m_defaultHeaderParams;
 
 private:
-  static InitHeaderParams const &getDefaultHeaderParams(double planetDistance);
+  static InitHeaderParams const &getDefaultHeaderParams(double pericentre,
+                                                        double planetDistance);
 };
 
 /*

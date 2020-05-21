@@ -87,7 +87,7 @@ private:
                             std::string const &planetDistanceB,
                             std::size_t const &orientationIndex) const;
 
-  std::string generateInitHeader(std::string const &filename,
+  std::string generateInitHeader(std::string const &filename, double pericentre,
                                  double planetDistance) const;
 
   void saveSimulationParameters(
@@ -101,7 +101,7 @@ private:
   std::string generateSimulationPlanetDistancesSubLine(
       InitSimulationParams const &parameters) const;
 
-  bool isThreeBodies() const;
+  double randomizeTrueAnomaly(double pericentre, double planetDistance) const;
 
   std::vector<InitSimulationParams> m_simulationParams;
 
@@ -110,4 +110,4 @@ private:
   TaskRunner &m_taskRunner;
 };
 
-#endif // !GENERATEINITFILES_H
+#endif /* GENERATEINITFILES_H */

@@ -5,9 +5,15 @@ TaskRunner &TaskRunner::getInstance() {
   return instance;
 }
 
-void TaskRunner::startTask() { m_isRunning = true; }
+void TaskRunner::startTask() {
+  std::unique_lock<std::mutex> lock(m_mutex);
+  m_isRunning = true;
+}
 
-void TaskRunner::stopTask() { m_isRunning = false; }
+void TaskRunner::stopTask() {
+  std::unique_lock<std::mutex> lock(m_mutex);
+  m_isRunning = false;
+}
 
 bool TaskRunner::isRunning() const { return m_isRunning; }
 
@@ -38,6 +44,7 @@ void TaskRunner::setNumberOfSteps(std::size_t numberOfSteps) {
 }
 
 void TaskRunner::reportProgress() {
+  std::unique_lock<std::mutex> lock(m_mutex);
   if (m_isRunning) {
     ++m_step;
     emit updateProgressBar();

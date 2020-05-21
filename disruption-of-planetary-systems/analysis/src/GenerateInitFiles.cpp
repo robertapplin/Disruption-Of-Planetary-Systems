@@ -3,16 +3,24 @@
 #include "Body.h"
 #include "BodyCreator.h"
 #include "InitSimulationParams.h"
+#include "XYZComponents.h"
 
 #include "FileManager.h"
 #include "TaskRunner.h"
+
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 namespace {
 
 using namespace BodyCreator;
 
-std::size_t randomNumber(int lower, int higher) {
+std::size_t randomNumber(std::size_t lower, std::size_t higher) {
   return static_cast<std::size_t>(rand() % (higher - lower) + lower);
+}
+
+double randomDouble(double lower, double higher) {
+  return (double)rand() / RAND_MAX * (higher - lower) + lower;
 }
 
 std::string formatSimParameter(double value) {
@@ -36,9 +44,7 @@ void generateFileText(std::string &fileText) { (void)(fileText); }
 template <typename Body, typename... Bodies>
 void generateFileText(std::string &fileText, Body const &body,
                       Bodies const &... bodies) {
-  auto const position = body.position(BodyTime::Initial);
-  auto const velocity = body.velocity(BodyTime::Initial);
-  generateFileLine(fileText, body.mass(), position, velocity);
+  generateFileLine(fileText, body.mass(), body.position(0), body.velocity(0));
   generateFileText(fileText, bodies...);
 }
 
@@ -113,7 +119,7 @@ void InitFileGenerator::generateInitFiles(
     std::vector<std::string> const &planetDistancesA,
     std::vector<std::string> const &planetDistancesB,
     std::size_t planetDistanceIndex, std::size_t numberOfOrientations) {
-  if (isThreeBodies()) {
+  if (OtherSimulationSettings::m_hasSinglePlanet) {
     generate3BodyInitFiles(pericentre, planetDistancesA[planetDistanceIndex],
                            numberOfOrientations);
   } else {
@@ -155,12 +161,13 @@ void InitFileGenerator::generate3BodyInitFile(std::string const &pericentre,
 void InitFileGenerator::generate3BodyInitFile(
     std::string const &filename, double pericentre, double planetDistance,
     std::size_t orientationIndex, std::size_t phi, std::size_t inclination) {
-  auto const trueAnomaly = InitHeaderData::trueAnomaly(planetDistance);
-  auto const star = createStar(pericentre, trueAnomaly);
-  auto const planet = createPlanet(*star, planetDistance, phi, inclination);
+  auto const star =
+      createStar(pericentre, randomizeTrueAnomaly(pericentre, planetDistance));
+  auto const planet =
+      createPlanet(*star, planetDistance, orientationIndex, phi, inclination);
 
-  std::string fileText = generateInitHeader(filename, planetDistance);
-  generateFileText(fileText, *blackHole, *star, *planet);
+  auto fileText = generateInitHeader(filename, pericentre, planetDistance);
+  generateFileText(fileText, *blackHole(), *star, *planet);
   createFile(filename + ".init", fileText);
 
   addInitSimulationParams(InitSimulationParams(filename, pericentre,
@@ -203,14 +210,17 @@ void InitFileGenerator::generate4BodyInitFile(
     std::size_t inclination) {
   auto const largestPlanetDistance =
       planetDistanceA > planetDistanceB ? planetDistanceA : planetDistanceB;
-  auto const trueAnomaly = InitHeaderData::trueAnomaly(largestPlanetDistance);
 
-  auto const star = createStar(pericentre, trueAnomaly);
-  auto const planetA = createPlanet(*star, planetDistanceA, phi, inclination);
-  auto const planetB = createPlanet(*star, planetDistanceB, phi, inclination);
+  auto const star = createStar(
+      pericentre, randomizeTrueAnomaly(pericentre, largestPlanetDistance));
+  auto const planetA =
+      createPlanet(*star, planetDistanceA, orientationIndex, phi, inclination);
+  auto const planetB =
+      createPlanet(*star, planetDistanceB, orientationIndex, phi, inclination);
 
-  std::string fileText = generateInitHeader(filename, largestPlanetDistance);
-  generateFileText(fileText, *blackHole, *star, *planetA, *planetB);
+  auto fileText =
+      generateInitHeader(filename, pericentre, largestPlanetDistance);
+  generateFileText(fileText, *blackHole(), *star, *planetA, *planetB);
   createFile(filename + ".init", fileText);
 
   addInitSimulationParams(InitSimulationParams(
@@ -234,11 +244,13 @@ std::string InitFileGenerator::generate4BodyInitFilename(
 }
 
 std::string InitFileGenerator::generateInitHeader(std::string const &filename,
+                                                  double pericentre,
                                                   double planetDistance) const {
   auto const numBodies = std::to_string(InitHeaderData::numberOfBodies());
-  auto const step = std::to_string(InitHeaderData::timeStep(planetDistance));
-  auto const numTimeSteps =
-      std::to_string(InitHeaderData::numberOfTimeStep(planetDistance));
+  auto const step =
+      std::to_string(InitHeaderData::timeStep(pericentre, planetDistance));
+  auto const numTimeSteps = std::to_string(
+      InitHeaderData::numberOfTimeStep(pericentre, planetDistance));
   return "-1 " + numBodies + " " + step + " " + numTimeSteps +
          " 0.000000 0.000000 1.d0 1.d-3 0.d0 0 " + filename + ".out 1 1";
 }
@@ -282,6 +294,17 @@ std::string InitFileGenerator::generateSimulationPlanetDistancesSubLine(
   return subLine + " " + formatSimParameter(parameters.m_planetDistances[1]);
 }
 
-bool InitFileGenerator::isThreeBodies() const {
-  return InitHeaderData::numberOfBodies() == 3;
+double InitFileGenerator::randomizeTrueAnomaly(double pericentre,
+                                               double planetDistance) const {
+  auto const trueAnomaly =
+      InitHeaderData::trueAnomaly(pericentre, planetDistance);
+
+  auto const x = 2.0 * pericentre * cos(trueAnomaly) / (1 + cos(trueAnomaly));
+  auto const y = 2.0 * pericentre * sin(trueAnomaly) / (1 + cos(trueAnomaly));
+  auto const xyz = XYZComponents(std::move(x), std::move(y), 0.0);
+
+  auto const deltaAnomaly =
+      atan(planetDistance * sin(M_PI - trueAnomaly) /
+           (xyz.magnitude() - planetDistance * cos(M_PI - trueAnomaly)));
+  return randomDouble(trueAnomaly - deltaAnomaly, trueAnomaly + deltaAnomaly);
 }

@@ -32,4 +32,4 @@ private:
   std::unique_ptr<DPSInterfaceModel> m_model;
 };
 
-#endif // !DPSINTERFACEPRESENTER_H
+#endif /* DPSINTERFACEPRESENTER_H */

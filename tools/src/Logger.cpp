@@ -32,6 +32,8 @@ void Logger::setVisible(bool visible) {
 }
 
 void Logger::addLog(LogType const &logType, std::string const &message) {
+  std::unique_lock<std::mutex> lock(m_mutex);
+
   if (m_statusOn) {
     switch (logType) {
     case LogType::Debug:
@@ -55,4 +57,10 @@ void Logger::addLog(LogType const &logType, std::string const &message) {
     m_logger->verticalScrollBar()->setValue(
         m_logger->verticalScrollBar()->maximum());
   }
+}
+
+void Logger::addLogs(LogType const &logType,
+                     std::vector<std::string> const &messages) {
+  for (auto const &message : messages)
+    addLog(logType, message);
 }

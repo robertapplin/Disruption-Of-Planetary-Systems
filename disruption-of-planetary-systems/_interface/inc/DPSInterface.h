@@ -27,4 +27,4 @@ private:
   Ui::DPSInterfaceClass m_ui;
 };
 
-#endif // !DPSINTERFACE_H
+#endif /* DPSINTERFACE_H */

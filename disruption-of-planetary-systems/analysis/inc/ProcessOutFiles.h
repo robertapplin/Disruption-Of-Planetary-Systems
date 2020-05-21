@@ -1,6 +1,7 @@
 #ifndef PROCESSOUTFILES_H
 #define PROCESSOUTFILES_H
 
+#include <fstream>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -33,6 +34,8 @@ private:
   void processOutFiles(
       std::vector<InitSimulationParams> const &simulationParameters);
   void processOutFile(InitSimulationParams const &parameters);
+  void processOutFile(InitSimulationParams const &parameters,
+                      std::vector<std::unique_ptr<Body>> const &bodies);
 
   void computeSimulationResults4Body(InitSimulationParams const &parameters,
                                      Body const &blackHole, Body const &star,
@@ -45,9 +48,11 @@ private:
   std::vector<std::unique_ptr<Body>>
   loadOutFile(InitSimulationParams const &parameters) const;
   std::vector<std::unique_ptr<Body>>
-  loadOutFile3Body(std::string const &filename) const;
+  loadOutFile(std::ifstream &fileStream) const;
   std::vector<std::unique_ptr<Body>>
-  loadOutFile4Body(std::string const &filename) const;
+  loadOutFile3Body(std::ifstream &fileStream) const;
+  std::vector<std::unique_ptr<Body>>
+  loadOutFile4Body(std::ifstream &fileStream) const;
 
   std::vector<double>
   calculateBodyTotalEnergies(Body const &targetBody, Body const &otherBody,
