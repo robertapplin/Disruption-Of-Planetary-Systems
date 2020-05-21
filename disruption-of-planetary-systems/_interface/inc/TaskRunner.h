@@ -1,6 +1,7 @@
 #ifndef TASK_RUNNER_H
 #define TASK_RUNNER_H
 
+#include <mutex>
 #include <string>
 
 #include <QObject>
@@ -42,6 +43,8 @@ private:
   double m_endValue = 100.0;
   std::size_t m_step = 0;
   std::size_t m_numberOfSteps = 100;
+
+  std::mutex m_mutex;
 };
 
 #endif /* TASK_RUNNER_H */

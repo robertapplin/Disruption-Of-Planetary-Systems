@@ -49,4 +49,4 @@ private:
   Ui::DPSView m_ui;
 };
 
-#endif // !DPSINTERFACEVIEW_H
+#endif /* DPSINTERFACEVIEW_H */

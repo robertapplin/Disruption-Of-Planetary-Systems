@@ -1,7 +1,9 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
+#include <mutex>
 #include <string>
+#include <vector>
 
 #include <QSplitter>
 #include <QTextEdit>
@@ -33,6 +35,8 @@ public:
   void setVisible(bool visible);
 
   void addLog(LogType const &logType, std::string const &message);
+  void addLogs(LogType const &logType,
+               std::vector<std::string> const &messages);
 
 private:
   Logger() {} // Singleton
@@ -40,6 +44,8 @@ private:
   QTextEdit *m_logger;
   QSplitter *m_layout;
   bool m_statusOn = false;
+
+  std::mutex m_mutex;
 };
 
 #endif /* LOGGER_H */

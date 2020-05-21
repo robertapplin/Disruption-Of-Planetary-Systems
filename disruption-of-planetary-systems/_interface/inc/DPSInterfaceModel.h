@@ -67,4 +67,4 @@ private:
   DPSInterfacePresenter *m_presenter;
 };
 
-#endif // !DPSINTERFACEMODEL_H
+#endif /* DPSINTERFACEMODEL_H */
